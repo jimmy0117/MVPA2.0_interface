@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>多模態嗓音壓力分析</title>
+</head>
+<body>
+    <h2>音訊資料匯入</h2>
+    <form action="/upload_audio" method="POST" enctype="multipart/form-data">
+        <input type="file" name="audio_file" accept=".wav, .mp3">
+        <button type="submit">讀取檔案</button>
+    </form>
+
+    {% if filename %}
+        <p>已上傳音訊：{{ filename }}</p>
+        <h3>Waveform</h3>
+        <img src="{{ url_for('static', filename='images/' + waveform_img.split('/')[-1]) }}" width="600">
+
+        <h3>Mel-Spectrogram</h3>
+        <img src="{{ url_for('static', filename='images/' + mel_img.split('/')[-1]) }}" width="600">
+
+        <h3>MFCC</h3>
+        <img src="{{ url_for('static', filename='images/' + mfcc_img.split('/')[-1]) }}" width="600">
+    {% endif %}
+</body>
+</html>
+{% if error %}
+<script>
+    alert("{{ error }}");
+</script>
+{% endif %}

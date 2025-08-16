@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新增病歷資料</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f7f9fc;
+            margin: 0;
+            padding: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.6em;
+        }
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            max-width: 700px;
+            margin: 0 auto 20px auto;
+        }
+        h2, h3 {
+            color: #34495e;
+            border-left: 6px solid #3498db;
+            padding-left: 10px;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            background: #3498db;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>新增病歷資料</h1>
+
+    <div class="card">
+        <form action="{{ url_for('save_medical') }}" method="post">
+
+            <h2>基本資料</h2>
+            <label>性別:</label>
+            <select name="sex" required>
+                <option value="1">男</option>
+                <option value="2">女</option>
+            </select>
+
+            <label>年齡:</label>
+            <input type="number" name="age" min="0" required>
+
+            <h2>症狀</h2>
+            <label>音域變窄:</label>
+            <select name="narrow_pitch_range">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>說話音量變小:</label>
+            <select name="decreased_volume">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>說話久了容易累:</label>
+            <select name="fatigue">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>喉嚨常覺得乾:</label>
+            <select name="dryness">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>喉嚨有異物感:</label>
+            <select name="lumping">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>胸口有灼熱感:</label>
+            <select name="heartburn">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>吞東西容易嗆到:</label>
+            <select name="choking">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>眼睛乾澀:</label>
+            <select name="eye_dryness">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>鼻涕倒流:</label>
+            <select name="pnd">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>糖尿病:</label>
+            <select name="diabetes">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>高血壓:</label>
+            <select name="hypertension">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>心臟病:</label>
+            <select name="cad">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>頭頸部腫瘤:</label>
+            <select name="head_and_neck_cancer">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>頭部損傷:</label>
+            <select name="head_injury">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <label>腦中風:</label>
+            <select name="cva">
+                <option value="0">無</option>
+                <option value="1">有</option>
+            </select>
+
+            <h2>生活習慣</h2>
+            <label>抽菸:</label>
+            <select name="smoking">
+                <option value="0">從未</option>
+                <option value="1">已戒菸</option>
+                <option value="2">有抽菸</option>
+                <option value="3">電子菸</option>
+            </select>
+
+            <label>一天幾包菸:</label>
+            <input type="number" name="ppd" min="0" step="0.1" required>
+
+            <label>喝酒:</label>
+            <select name="drinking">
+                <option value="0">從未</option>
+                <option value="1">已戒酒</option>
+                <option value="2">有喝酒</option>
+            </select>
+
+            <label>喝酒頻率:</label>
+            <select name="frequency">
+                <option value="0">不喝</option>
+                <option value="1">偶爾喝</option>
+                <option value="2">每周喝</option>
+                <option value="3">幾乎每天</option>
+            </select>
+
+            <h2>發聲相關</h2>
+            <label>症狀如何發生:</label>
+            <select name="onset_of_dysphonia">
+                <option value="1">突然</option>
+                <option value="2">逐漸變差</option>
+                <option value="3">時好時壞</option>
+                <option value="4">從小開始</option>
+                <option value="5">其他</option>
+            </select>
+
+            <label>工作環境是否吵雜:</label>
+            <select name="noise_at_work">
+                <option value="1">否</option>
+                <option value="2">有一點</option>
+                <option value="3">很吵</option>
+            </select>
+
+            <label>聲音何時最差:</label>
+            <select name="diurnal_pattern">
+                <option value="1">早上</option>
+                <option value="2">下午</option>
+                <option value="3">晚上</option>
+                <option value="4">都一樣</option>
+                <option value="5">不一定</option>
+            </select>
+
+            <label>用聲情形:</label>
+            <select name="occupational_vocal_demand">
+                <option value="1">總是需要</option>
+                <option value="2">經常需要</option>
+                <option value="3">偶而需要</option>
+                <option value="4">不需要</option>
+            </select>
+
+            <h3>VHI-10 問題 (0=不嚴重 ~ 4=最嚴重)</h3>
+
+            <label>1. 說話時會上氣不接下氣:</label>
+            <select name="vhi1">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>2. 我的嗓音一天內有不同的變化:</label>
+            <select name="vhi2">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>3. 大家會問我「你的聲音怎麼了」:</label>
+            <select name="vhi3">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>4. 我的聲音聽起來沙啞、乾澀:</label>
+            <select name="vhi4">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>5. 我覺得我必須要用力才能發出聲音:</label>
+            <select name="vhi5">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>6. 我聲音的清晰度是無法預測、變化多端的:</label>
+            <select name="vhi6">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>7. 我試著改變我的聲音使它聽起來不同:</label>
+            <select name="vhi7">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>8. 說話使我感到吃力:</label>
+            <select name="vhi8">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>9. 傍晚過後我的聲音聽起來更糟:</label>
+            <select name="vhi9">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <label>10. 說話說到一半時、聲音會失控失聲:</label>
+            <select name="vhi10">{% for i in range(5) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+
+            <button type="submit">送出病歷</button>
+        </form>
+    </div>
+</body>
+</html>

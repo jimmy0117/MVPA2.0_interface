@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Flask
+ffmpeg.exe
+ffplay.exe
+ffprobe.exe

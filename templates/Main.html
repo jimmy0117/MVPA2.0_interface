@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多模態嗓音病歷分析</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f7f9fc;
+            margin: 0;
+            padding: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.6em;
+        }
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 6px solid #3498db;
+            padding-left: 10px;
+            font-size: 1.2em;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        table td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            word-break: break-word;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        .ok { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        button {
+            margin: 6px 4px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            background: #3498db;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        #status {
+            margin-top: 8px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .result-images {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .result-images img {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 5px;
+        }
+        @media (min-width: 768px) {
+            .result-images {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>多模態嗓音病歷分析</h1>
+
+    <!-- 步驟 1：病歷 -->
+    <div class="card">
+        <h2>步驟 1：填寫病歷</h2>
+        <a href="{{ url_for('input_medical') }}"><button>新增病歷</button></a>
+
+        {% if record %}
+            <p class="ok">最新病歷已填寫 ✔</p>
+            <div class="table-wrapper">
+                <table>
+                    {% for key, value in record.items() %}
+                        <tr>
+                            <td>{{ field_labels.get(key, key) }}</td>
+                            <td>{{ value }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        {% else %}
+            <p class="error">目前沒有病歷資料，請先新增</p>
+        {% endif %}
+    </div>
+
+    <!-- 步驟 2：音訊 -->
+    <div class="card">
+        <h2>步驟 2：選擇音訊</h2>
+        <form id="audioForm" enctype="multipart/form-data">
+            <input type="file" id="audio_file" name="audio_file" accept=".wav,.mp3,.webm" onchange="autoUploadAudio(this)" hidden>
+            <button type="button" onclick="document.getElementById('audio_file').click()">選擇音檔</button>
+            <span id="fileName" style="margin-left:10px; font-style:italic; color:#555; font-size: 13px;"></span>
+        </form>
+
+        <button type="button" onclick="startRecording()">開始錄音</button>
+        <button type="button" onclick="stopRecording()">停止錄音</button>
+
+        <p id="status" style="color:blue;"></p>
+    </div>
+
+    <!-- 步驟 3：確認 -->
+    <div class="card">
+        <h2>步驟 3：確認</h2>
+        <form id="confirmForm" action="/confirm_analysis" method="POST">
+            <input type="hidden" name="audio_path" id="audioPath">
+            <button type="submit" {% if not record %}disabled{% endif %}>確認分析</button>
+        </form>
+    </div>
+
+    <!-- 音訊結果 -->
+    {% if waveform_img %}
+    <div class="card">
+        <h2>分析結果</h2>
+        <div class="result-images">
+            <div>
+                <h3>Waveform</h3>
+                <img src="{{ url_for('static', filename='images/' + waveform_img) }}">
+            </div>
+            <div>
+                <h3>Mel-Spectrogram</h3>
+                <img src="{{ url_for('static', filename='images/' + mel_img) }}">
+            </div>
+            <div>
+                <h3>MFCC</h3>
+                <img src="{{ url_for('static', filename='images/' + mfcc_img) }}">
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if error %}
+        <script>alert("{{ error }}");</script>
+    {% endif %}
+
+<!--從這裡開始是JS-->
+<script>
+let mediaRecorder;
+let audioChunks = [];
+
+function setStatus(msg, color="blue") {
+    let status = document.getElementById("status");
+    status.style.color = color;
+    status.textContent = msg;
+}
+
+// 自動上傳音檔
+function autoUploadAudio(input) {
+    if (input.files.length === 0) return;
+    document.getElementById("fileName").textContent = input.files[0].name;
+    let formData = new FormData(document.getElementById("audioForm"));
+    setStatus("音檔上傳中...");
+    fetch("/upload_audio", { method: "POST", body: formData })
+    .then(res => res.json())
+    .then(data => {
+        if (data.audio_path) {
+            document.getElementById("audioPath").value = data.audio_path;
+            setStatus("音檔上傳完成，可以按確認 ✅", "green");
+        } else {
+            setStatus("上傳失敗：" + (data.error || "未知錯誤"), "red");
+        }
+    })
+    .catch(err => setStatus("上傳失敗：" + err, "red"));
+}
+
+// 開始錄音
+function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setStatus("此瀏覽器不支援錄音功能", "red");
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        setStatus("錄音中...");
+    });
+}
+
+// 停止錄音
+function stopRecording() {
+    if (!mediaRecorder) return;
+    mediaRecorder.stop();
+    mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append("audio_data", audioBlob, "record.webm");
+
+        setStatus("處理錄音...");
+        fetch("/record_audio", { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.audio_path) {
+                document.getElementById("audioPath").value = data.audio_path;
+                setStatus("錄音完成，可以按確認 ✅", "green");
+            } else {
+                setStatus("錄音失敗：" + (data.error || "未知錯誤"), "red");
+            }
+        })
+        .catch(err => setStatus("錄音失敗：" + err, "red"));
+    };
+}
+</script>
+</body>
+</html>

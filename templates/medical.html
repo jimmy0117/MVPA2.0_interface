@@ -1,0 +1,23 @@
+<!DOCTYPE html><!--測試用網站-->
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>病歷資料</title>
+</head>
+<body>
+    <h2>最新病歷資料</h2>
+
+    {% if record %}
+    <table border="1" cellpadding="5">
+        {% for key, value in record.items() %}
+            <tr>
+                <td>{{ key }}</td>
+                <td>{{ value }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p>目前沒有病歷資料</p>
+    {% endif %}
+</body>
+</html>
