@@ -2,30 +2,55 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>多模態嗓音壓力分析</title>
+    <title>多模態嗓音病歷分析 - 首頁</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f7f9fc;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .login-btn {
+            background: #3498db;
+            color: white;
+        }
+        .register-btn {
+            background: #2ecc71;
+            color: white;
+        }
+    </style>
 </head>
 <body>
-    <h2>音訊資料匯入</h2>
-    <form action="/upload_audio" method="POST" enctype="multipart/form-data">
-        <input type="file" name="audio_file" accept=".wav, .mp3">
-        <button type="submit">讀取檔案</button>
-    </form>
-
-    {% if filename %}
-        <p>已上傳音訊：{{ filename }}</p>
-        <h3>Waveform</h3>
-        <img src="{{ url_for('static', filename='images/' + waveform_img.split('/')[-1]) }}" width="600">
-
-        <h3>Mel-Spectrogram</h3>
-        <img src="{{ url_for('static', filename='images/' + mel_img.split('/')[-1]) }}" width="600">
-
-        <h3>MFCC</h3>
-        <img src="{{ url_for('static', filename='images/' + mfcc_img.split('/')[-1]) }}" width="600">
-    {% endif %}
+    <div class="card">
+        <h1>多模態嗓音病歷分析</h1>
+        <a href="{{ url_for('login') }}">
+            <button class="login-btn">登入</button>
+        </a>
+        <a href="{{ url_for('register') }}">
+            <button class="register-btn">註冊</button>
+        </a>
+    </div>
 </body>
 </html>
-{% if error %}
-<script>
-    alert("{{ error }}");
-</script>
-{% endif %}

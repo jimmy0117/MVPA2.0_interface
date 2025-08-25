@@ -1,13 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-from pathlib import Path
-from pydub import AudioSegment
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+import secrets
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import librosa
 import librosa.display
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import uuid
 import os
 import sqlite3
 matplotlib.use('Agg')# Flask是用非 GUI 的背景線程執行，調整為非GUI後端，否則連續上傳圖片會有GUI殘留(會報錯)
@@ -45,7 +45,7 @@ FIELD_LABELS = {
     "diurnal_pattern": "聲音何時最差",
     "occupational_vocal_demand": "用聲情形",
     "vhi10": "嗓音障礙指標 (VHI-10 總分)",
-    "created_at": "建立時間"
+    "created_at": "建立時間(UTC+8)"
 }
 
 # 讀取音訊，製作圖片，回傳檔名
@@ -168,27 +168,100 @@ def init_db():
     conn.close()
     print("✅ Database initialized")
 
-app = Flask(__name__)# 建立Application物件
+#登入限制
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+app = Flask(__name__) # 建立Application物件
+app.secret_key = secrets.token_hex(16) # 安全字串
 UPLOAD_FOLDER = 'uploads/audio'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-@app.route('/')# 網站首頁(打算用登入但還沒用)
+# 網站首頁
+@app.route('/')
 def index():
     return render_template('index.html')
 
+#註冊
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        hashed_pw = generate_password_hash(password)
+
+        conn = get_db_connection()
+        try:
+            conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_pw))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return "帳號已存在"
+        finally:
+            conn.close()
+
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
+#登入
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        conn.close()
+
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            return redirect(url_for('Main'))
+        else:
+            return "帳號或密碼錯誤"
+
+    return render_template('login.html')
+
+#登出
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 @app.route('/Main')# 主要功能頁面
+@login_required # 限制訪問
 def Main():
     # 讀最新病歷
     conn = get_db_connection()
-    record = conn.execute("SELECT * FROM medical_records ORDER BY created_at DESC LIMIT 1").fetchone()
+    record = conn.execute("""
+    SELECT medical_records.*, users.username 
+    FROM medical_records
+    JOIN users ON medical_records.user_id = users.id
+    ORDER BY medical_records.created_at DESC LIMIT 1""").fetchone()
     conn.close()
 
     record = dict(record) if record else None
-    if record and "id" in record:
-        del record["id"]
+    if record:
+        # 刪除不想要顯示出來的欄位(不顯示)
+        if "id" in record:
+            del record["id"]
+        if "username" in record:
+            record["user_id"]=record["username"]
+            del record["username"]
 
-    return render_template("Main.html", record=record,field_labels=FIELD_LABELS)
+        # 時間處理：UTC -> UTC+8 (資料庫存的是UTC標準時間)
+        if "created_at" in record and record["created_at"]:
+            utc_time = datetime.datetime.strptime(record["created_at"], "%Y-%m-%d %H:%M:%S")
+            local_time = utc_time + datetime.timedelta(hours=8)
+            record["created_at"] = local_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template("Main.html", record=record, field_labels=FIELD_LABELS)
 
 @app.route('/upload_audio', methods=['POST'])# 上傳音訊檔案
 def upload_audio():
@@ -214,6 +287,7 @@ def record_audio():
         return jsonify({"error": "錄音失敗"}), 400
 
 @app.route('/input_medical')# 手動輸入
+@login_required # 限制訪問
 def input_medical():
     return render_template('input_medical.html')
 
@@ -234,7 +308,7 @@ def save_medical():
             diurnal_pattern, occupational_vocal_demand, vhi10
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        1,  # 先暫時寫死 user_id=1
+        session['user_id'],
         data['sex'],
         data['age'],
         data['narrow_pitch_range'],
@@ -268,16 +342,33 @@ def save_medical():
     return redirect(url_for('Main'))
 
 @app.route('/confirm_analysis', methods=['POST'])#確認後產生圖片顯示圖片
+@login_required # 限制訪問
 def confirm_analysis():
     audio_path = request.form.get("audio_path")
 
     # 撈最新病歷
     conn = get_db_connection()
-    record = conn.execute("SELECT * FROM medical_records ORDER BY created_at DESC LIMIT 1").fetchone()
+    record = conn.execute("""
+    SELECT medical_records.*, users.username 
+    FROM medical_records
+    JOIN users ON medical_records.user_id = users.id
+    ORDER BY medical_records.created_at DESC LIMIT 1""").fetchone()
     conn.close()
+
     record = dict(record) if record else None
-    if record and "id" in record:
-        del record["id"]
+    if record:
+        # 刪除不想要顯示出來的欄位(不顯示)
+        if "id" in record:
+            del record["id"]
+        if "username" in record:
+            record["user_id"]=record["username"]
+            del record["username"]
+
+        # 時間處理：UTC -> UTC+8 (資料庫存的是UTC標準時間)
+        if "created_at" in record and record["created_at"]:
+            utc_time = datetime.datetime.strptime(record["created_at"], "%Y-%m-%d %H:%M:%S")
+            local_time = utc_time + datetime.timedelta(hours=8)
+            record["created_at"] = local_time.strftime("%Y-%m-%d %H:%M:%S")
 
     if not audio_path or not os.path.exists(audio_path):
         return render_template("Main.html",
@@ -310,4 +401,4 @@ def confirm_analysis():
 
 if __name__ == '__main__':
     init_db()#啟動時確保資料表存在
-    app.run(host='0.0.0.0',debug=True, use_reloader=False)
+    app.run(host='0.0.0.0',debug=True)

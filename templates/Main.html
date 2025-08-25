@@ -90,7 +90,13 @@
     </style>
 </head>
 <body>
+    
     <h1>多模態嗓音病歷分析</h1>
+
+    <div class="card">
+        <h2>歡迎，使用者{{ session['username'] }}！</h2>
+        <a href="{{ url_for('logout') }}"><button>登出</button></a>
+    </div>
 
     <!-- 步驟 1：病歷 -->
     <div class="card">
