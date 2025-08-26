@@ -1,17 +1,35 @@
 import os
 import requests
+from tqdm import tqdm
 
 def download_from_dropbox(shared_url, dest_path):
-    
     # 轉換成直接下載連結
     download_url = shared_url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
     download_url = download_url.replace('?dl=0', '').replace('?dl=1', '')
     r = requests.get(download_url, stream=True)
     r.raise_for_status()
-    with open(dest_path, 'wb') as f:
+    total = int(r.headers.get('content-length', 0))
+    # 酷炫進度條格式
+    bar_format = (
+        "\033[1;35m{l_bar}\033[0m"  # 紫色標題
+        "\033[1;36m{bar}\033[0m"    # 青色進度條
+        " 🚀 | {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] "
+        "\033[1;33m🔥\033[0m"
+    )
+    with open(dest_path, 'wb') as f, tqdm(
+        desc=f"下載中: {os.path.basename(dest_path)}",
+        total=total,
+        unit='B',
+        unit_scale=True,
+        unit_divisor=1024,
+        leave=True,
+        bar_format=bar_format,
+        colour='magenta'  # 進度條顏色
+    ) as bar:
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
+                bar.update(len(chunk))
 
 def __main__():
     url_list = [
@@ -26,23 +44,22 @@ def __main__():
             'https://www.dropbox.com/scl/fi/9rjmsq7m26yxw9bdsal8s/function_pred.py?rlkey=o8ye41ptwqjprszztv2cnut1y&st=gp5a9kiv&dl=0',
             'https://www.dropbox.com/scl/fi/mmzecfr378l0czwfkpkty/smote_non_cnn_model_0.84.h5?rlkey=6bhoqqdgpj532h5g8ifd1uv6z&st=srt3mpiu&dl=0',
         ]}
-# 這裡可以放多個 Dropbox 連結
     ]
     for url in url_list:
         if isinstance(url, str):
-            print(f"Downloading from {url}...")
+            print(f"\033[1;32m🚀 開始下載：{url}\033[0m")
             dest_path = url.split('/')[-1].split('?')[0]
             download_from_dropbox(url, dest_path)
-            print(f"Saved to {dest_path}")
+            print(f"\033[1;34m✔ 已儲存：{dest_path}\033[0m\n")
         elif isinstance(url, dict):
             for key in url:
                 os.makedirs(key, exist_ok=True)
                 i = 1
                 for link in url[key]:
-                    print(f"Downloading from {link}...")
+                    print(f"\033[1;32m🚀 開始下載：{link}\033[0m")
                     dest_path = f'./{key}/{i}_' + link.split('/')[-1].split('?')[0]
                     download_from_dropbox(link, dest_path)
-                    print(f"Saved to {dest_path}")
+                    print(f"\033[1;34m✔ 已儲存：{dest_path}\033[0m\n")
                     i += 1
 
 if __name__ == "__main__":
