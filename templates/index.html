@@ -52,5 +52,8 @@
             <button class="register-btn">註冊</button>
         </a>
     </div>
+    {% if error %}
+        <script>alert("{{ error }}");</script>
+    {% endif %}
 </body>
 </html>

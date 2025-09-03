@@ -32,7 +32,7 @@
         }
         table {
             border-collapse: collapse;
-            width: 100%;
+            width: auto;
             margin-top: 10px;
             font-size: 14px;
         }
@@ -144,7 +144,7 @@
         </form>
     </div>
 
-    <!-- 音訊結果 -->
+    <!-- 分析結果 -->
     {% if waveform_img %}
     <div class="card">
         <h2>分析結果</h2>
@@ -161,6 +161,18 @@
                 <h3>MFCC</h3>
                 <img src="{{ url_for('static', filename='images/' + mfcc_img) }}">
             </div>
+            {% if type1 and conf1 %}
+                <div style="margin-bottom: 15px; padding: 10px; background: #ecf9ff; border-radius: 6px;">
+                    <h3>預測疾病類別：{{ type1 }}</h3>
+                    <h3>預測信心程度：{{ (conf1 * 10000 // 1 / 100) | round(2) }}%</h3>
+                </div>
+            {% endif %}
+            {% if type2 and conf2 %}
+                <div style="margin-bottom: 15px; padding: 10px; background: #ecf9ff; border-radius: 6px;">
+                    <h3>預測疾病種類：{{ type2 }}</h3>
+                    <h3>預測信心程度：{{ (conf2 * 10000 // 1 / 100) | round(2) }}%</h3>
+                </div>
+            {% endif %}
         </div>
     </div>
     {% endif %}

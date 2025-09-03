@@ -107,5 +107,8 @@
             <p>已經有帳號？ <a href="{{ url_for('login') }}">登入</a></p>
         </div>
     </div>
+    {% if error %}
+        <script>alert("{{ error }}");</script>
+    {% endif %}
 </body>
 </html>

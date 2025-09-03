@@ -172,7 +172,7 @@
 
             <h2>生活習慣</h2>
             <label>抽菸:</label>
-            <select name="smoking">
+            <select name="smoking" id="smoking">
                 <option value="0">從未</option>
                 <option value="1">已戒菸</option>
                 <option value="2">有抽菸</option>
@@ -180,7 +180,7 @@
             </select>
 
             <label>一天幾包菸:</label>
-            <input type="number" name="ppd" min="0" step="0.1" required>
+            <input type="number" name="ppd" id="ppd" min="0" step="1" required>
 
             <label>喝酒:</label>
             <select name="drinking">
@@ -266,5 +266,23 @@
             <button type="submit">送出病歷</button>
         </form>
     </div>
+<script>
+function updatePPD() {
+    const smoking = document.getElementById("smoking");
+    const ppd = document.getElementById("ppd");
+    if (smoking.value === "0") {
+        ppd.value = 0;       // 固定為 0
+        ppd.readOnly = true; // 設為唯讀
+    } else {
+        ppd.readOnly = false; // 其他情況可輸入
+    }
+}
+
+// 下拉選單改變時執行
+document.getElementById("smoking").addEventListener("change", updatePPD);
+
+// 頁面載入完成時執行一次 (處理起始狀態)
+window.addEventListener("load", updatePPD);
+</script>
 </body>
 </html>

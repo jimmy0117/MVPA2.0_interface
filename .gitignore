@@ -216,3 +216,11 @@ Models/
 
 # temp files
 temp/
+
+#download files
+.h5
+.pkl
+
+#upload files
+.wav
+.png
