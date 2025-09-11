@@ -225,5 +225,6 @@ temp/
 .pkl
 
 #upload files
-.wav
-.png
+uploads/audio
+# img files
+static/images/

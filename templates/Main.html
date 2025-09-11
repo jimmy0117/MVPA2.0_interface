@@ -140,7 +140,7 @@
         <h2>步驟 3：確認</h2>
         <form id="confirmForm" action="/confirm_analysis" method="POST">
             <input type="hidden" name="audio_path" id="audioPath">
-            <button type="submit" {% if not record %}disabled{% endif %}>確認分析</button>
+            <button type="submit" id="confirmBtn" disabled>確認分析</button>
         </form>
     </div>
 
@@ -171,6 +171,11 @@
                 <div style="margin-bottom: 15px; padding: 10px; background: #ecf9ff; border-radius: 6px;">
                     <h3>預測疾病種類：{{ type2 }}</h3>
                     <h3>預測信心程度：{{ (conf2 * 10000 // 1 / 100) | round(2) }}%</h3>
+                </div>
+            {% endif %}
+            {% if type3 %}
+                <div style="margin-bottom: 15px; padding: 10px; background: #ecf9ff; border-radius: 6px;">
+                    <h3 style="color: red;">信心程度低於80%，建議做詳細檢查</h3>
                 </div>
             {% endif %}
         </div>
@@ -204,6 +209,7 @@ function autoUploadAudio(input) {
         if (data.audio_path) {
             document.getElementById("audioPath").value = data.audio_path;
             setStatus("音檔上傳完成，可以按確認 ✅", "green");
+            updateConfirmButton();
         } else {
             setStatus("上傳失敗：" + (data.error || "未知錯誤"), "red");
         }
@@ -242,6 +248,7 @@ function stopRecording() {
             if (data.audio_path) {
                 document.getElementById("audioPath").value = data.audio_path;
                 setStatus("錄音完成，可以按確認 ✅", "green");
+                updateConfirmButton();
             } else {
                 setStatus("錄音失敗：" + (data.error || "未知錯誤"), "red");
             }
@@ -249,6 +256,22 @@ function stopRecording() {
         .catch(err => setStatus("錄音失敗：" + err, "red"));
     };
 }
+
+//確認鍵是否可以按
+function updateConfirmButton() {
+    // record 是否存在
+    const recordExists = "{{ 'true' if record else 'false' }}" === "true";
+    // audioPath 是否有值
+    const audioPath = document.getElementById("audioPath").value;
+
+    document.getElementById("confirmBtn").disabled = !(recordExists && audioPath);
+}
+
+// 監聽 audioPath 改變
+document.getElementById("audioPath").addEventListener("change", updateConfirmButton);
+
+// 頁面載入後執行一次
+updateConfirmButton();
 </script>
 </body>
 </html>
