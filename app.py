@@ -103,7 +103,7 @@ VOICE2_LABELS = {
     4: "不需要"
 }
 
-#模型用的list標準
+#病變模型用的list標準
 MODEL_FEATURE_ORDER = [
     "sex",
     "narrow_pitch_range",
@@ -128,7 +128,7 @@ MODEL_FEATURE_ORDER = [
     "vhi10"
 ]
 
-#病例分析用
+#病例模型用的list標準
 feature_names = [
         "Sex", "Narrow pitch range", "Decreased volume", "Fatigue", "Dryness",
         "Choking", "Eye dryness", "PND", "Smoking", "Drinking", "Frequency",
@@ -245,8 +245,11 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         record_id INTEGER,
-        result TEXT,
-        confidence REAL,
+        result1 TEXT,
+        confidence1 REAL,
+        result2 TEXT,
+        confidence2 REAL,
+        audio_blob BLOB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (record_id) REFERENCES medical_records(id)
@@ -516,8 +519,9 @@ def confirm_analysis():
 
     record = dict(record) if record else None
     sample_list = [record[col] for col in MODEL_FEATURE_ORDER]
+    record_id = record["id"]
+    record_user = record["user_id"]
     record = organize_records(record)
-    print(record)
 
     #病例分析模型
     model_path1 = 'best_svm_model.pkl'
@@ -569,6 +573,9 @@ def confirm_analysis():
             if pred2=='18.Tremor':
                 type2="聲帶顫抖"
                 conf2=proba2[3]
+    
+    #信心程度不高的警告
+    type3 = 1 if (conf1 <0.8 or conf2 < 0.8) else None
 
     #確認回傳
     if not audio_path or not os.path.exists(audio_path):
@@ -588,6 +595,17 @@ def confirm_analysis():
 
         waveform_img, mel_img, mfcc_img = result
 
+        #存結果
+        with open(audio_path, "rb") as f:
+            audio_blob = f.read()
+        conn = get_db_connection()
+        conn.execute("""
+            INSERT INTO results (user_id, record_id, result1, confidence1,result2,confidence2, audio_blob)
+            VALUES (?,?,?,?,?,?,?)
+            """,(record_user,record_id,type1,float(conf1),type2,float(conf2),audio_blob))
+        conn.commit()
+        conn.close()
+
         if pred1==3:
             return render_template("Main.html",
                                waveform_img=waveform_img,
@@ -596,6 +614,7 @@ def confirm_analysis():
                                record=record,
                                type1=type1,
                                conf1=conf1,
+                               type3=type3,
                                field_labels=FIELD_LABELS)
         else:
             return render_template("Main.html",
@@ -607,6 +626,7 @@ def confirm_analysis():
                                 conf1=conf1,
                                 type2=type2,
                                 conf2=conf2,
+                                type3=type3,
                                 field_labels=FIELD_LABELS)
     except Exception as e:
         return render_template("Main.html",
