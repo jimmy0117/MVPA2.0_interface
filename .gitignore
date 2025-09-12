@@ -228,3 +228,5 @@ temp/
 uploads/audio/
 # img files
 static/images/
+# database files
+database.db
