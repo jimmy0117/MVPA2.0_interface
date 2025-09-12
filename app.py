@@ -538,6 +538,8 @@ def confirm_analysis():
             conf1=proba1[0][2]
 
     #結構性病變嗓音模型
+    type2=None
+    conf2=None
     if pred1==1:
         model_path2 = 'smote_cnn_model_0.86.h5'
         class_names = [
@@ -573,9 +575,12 @@ def confirm_analysis():
             if pred2=='18.Tremor':
                 type2="聲帶顫抖"
                 conf2=proba2[3]
-    
+    type3=None
     #信心程度不高的警告
-    type3 = 1 if (conf1 <0.8 or conf2 < 0.8) else None
+    if conf2 is not None:
+        type3 = 1 if (conf1 <0.8 or conf2 < 0.8) else None
+    else:
+        type3 = 1 if (conf1 <0.8) else None
 
     #確認回傳
     if not audio_path or not os.path.exists(audio_path):
@@ -600,9 +605,17 @@ def confirm_analysis():
             audio_blob = f.read()
         conn = get_db_connection()
         conn.execute("""
-            INSERT INTO results (user_id, record_id, result1, confidence1,result2,confidence2, audio_blob)
+            INSERT INTO results (user_id, record_id, result1, confidence1, result2, confidence2, audio_blob)
             VALUES (?,?,?,?,?,?,?)
-            """,(record_user,record_id,type1,float(conf1),type2,float(conf2),audio_blob))
+            """, (
+                record_user,
+                record_id,
+                type1,
+                float(conf1) if conf1 is not None else None,
+                type2,
+                float(conf2) if conf2 is not None else None,
+                audio_blob
+            ))
         conn.commit()
         conn.close()
 
@@ -614,6 +627,8 @@ def confirm_analysis():
                                record=record,
                                type1=type1,
                                conf1=conf1,
+                               type2=type2,
+                               conf2=conf2,
                                type3=type3,
                                field_labels=FIELD_LABELS)
         else:
