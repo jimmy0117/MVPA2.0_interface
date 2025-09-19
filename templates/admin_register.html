@@ -103,7 +103,7 @@
 <body>
     <a href="{{ url_for('index') }}"><button class="btn">返回</button></a>
     <div class="card">
-        <h2>註冊</h2>
+        <h2>醫生註冊(無法正常進來此網頁)</h2>
         <form method="POST">
             <div>
                 <label>帳號</label>
@@ -116,7 +116,7 @@
             <button type="submit">註冊</button>
         </form>
         <div class="link">
-            <p>已經有帳號？ <a href="{{ url_for('login') }}">登入</a></p>
+            <p>切換回醫生登入 <a href="{{ url_for('admin') }}">登入</a></p>
         </div>
     </div>
     {% if error %}

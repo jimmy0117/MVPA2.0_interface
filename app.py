@@ -19,7 +19,7 @@ matplotlib.use('Agg')# Flask是用非 GUI 的背景線程執行，調整為非GU
 IMAGE_FOLDER = 'static/images'
 os.makedirs(IMAGE_FOLDER, exist_ok=True)
 
-#中英對照表
+# 中英對照表
 FIELD_LABELS = {
     "user_id":"使用者名稱",
     "sex": "性別",
@@ -51,7 +51,7 @@ FIELD_LABELS = {
     "created_at": "建立時間(UTC+8)"
 }
 
-#滿滿的對照表(病歷用)
+# 滿滿的對照表(病歷用)
 SEX_LABELS = {
     2: "女",
     1: "男"
@@ -103,7 +103,7 @@ VOICE2_LABELS = {
     4: "不需要"
 }
 
-#病變模型用的list標準
+# 病變模型用的list標準
 MODEL_FEATURE_ORDER = [
     "sex",
     "narrow_pitch_range",
@@ -128,7 +128,7 @@ MODEL_FEATURE_ORDER = [
     "vhi10"
 ]
 
-#病例模型用的list標準
+# 病例模型用的list標準
 feature_names = [
         "Sex", "Narrow pitch range", "Decreased volume", "Fatigue", "Dryness",
         "Choking", "Eye dryness", "PND", "Smoking", "Drinking", "Frequency",
@@ -203,6 +203,15 @@ def init_db():
     )
     """)
 
+    # 建立醫生表
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS admins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL
+    )
+    """)
+
     # 建立病歷表
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS medical_records (
@@ -260,16 +269,16 @@ def init_db():
     conn.close()
     print("✅ Database initialized")
 
-#登入限制
+# 登入限制
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user_id" not in session:
-            return redirect(url_for('login'))
+            return redirect(url_for('Main'))
         return f(*args, **kwargs)
     return decorated_function
 
-#整理病歷資料
+# 整理病歷資料
 def organize_records(record):
     if record:
 
@@ -310,7 +319,7 @@ def organize_records(record):
         "created_at": record["created_at"]
     }
 
-#病例分析模型
+# 病例分析模型
 def predict_from_list(input_list, model_path, feature_names):
     # 建立 DataFrame
     df = pd.DataFrame([input_list], columns=feature_names)
@@ -324,7 +333,7 @@ def predict_from_list(input_list, model_path, feature_names):
     
     return y_pred, y_pred_proba
 
-#嗓音模型
+# 嗓音模型
 def predict_audio_file(file_path, model_path, class_names, sr=22050, duration=3.0, n_mfcc=40, max_mfcc_length=130):
     # 讀取音訊
     signal, sr = librosa.load(file_path, sr=sr)
@@ -360,7 +369,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def index():
     return render_template('index.html')
 
-#註冊
+# 註冊
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -380,7 +389,7 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
-#登入
+# 登入
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -400,13 +409,61 @@ def login():
 
     return render_template('login.html')
 
-#登出
+# 登出
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-@app.route('/Main')# 主要功能頁面
+# 醫生註冊
+@app.route('/admin_register', methods=['GET', 'POST'])
+def admin_register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        hashed_pw = generate_password_hash(password)
+
+        conn = get_db_connection()
+        try:
+            conn.execute("INSERT INTO admins (username, password) VALUES (?, ?)", (username, hashed_pw))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return render_template("admin_register.html",error="帳號已存在")
+        finally:
+            conn.close()
+
+        return redirect(url_for('admin'))
+    return render_template('admin_register.html')
+
+# 醫生登入
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        admin = conn.execute("SELECT * FROM admins WHERE username=?", (username,)).fetchone()
+        conn.close()
+        print(username,password)
+        print(admin)
+        if admin and check_password_hash(admin['password'], password):
+            session['user_id'] = admin['id']
+            session['username'] = admin['username']
+            return redirect(url_for('admin_Main'))
+        else:
+            return render_template("admin.html",error="帳號或密碼錯誤")
+
+    return render_template('admin.html')
+
+# 醫生功能頁面
+@app.route('/admin_Main')
+@login_required
+def admin_Main():
+    return render_template("admin_Main.html")
+
+# 主要功能頁面
+@app.route('/Main')
 @login_required # 限制訪問
 def Main():
     # 讀最新病歷
@@ -424,7 +481,8 @@ def Main():
 
     return render_template("Main.html", record=record, field_labels=FIELD_LABELS)
 
-@app.route('/upload_audio', methods=['POST'])# 上傳音訊檔案
+# 上傳音訊檔案
+@app.route('/upload_audio', methods=['POST'])
 def upload_audio():
     file = request.files['audio_file']
     if file and allowed_file(file.filename):
@@ -436,7 +494,8 @@ def upload_audio():
     else:
         return jsonify({"error": "請上傳 .wav 或 .mp3 或 .webm 音訊檔"}), 400
     
-@app.route('/record_audio', methods=['POST'])  # 上傳錄音檔案
+# 上傳錄音檔案
+@app.route('/record_audio', methods=['POST'])  
 def record_audio():
     file = request.files['audio_data']
     if file:
@@ -447,12 +506,14 @@ def record_audio():
     else:
         return jsonify({"error": "錄音失敗"}), 400
 
-@app.route('/input_medical')# 手動輸入
+# 手動輸入
+@app.route('/input_medical')
 @login_required # 限制訪問
 def input_medical():
     return render_template('input_medical.html')
 
-@app.route('/save_medical', methods=['POST'])# 存病歷資料
+# 存病歷資料
+@app.route('/save_medical', methods=['POST'])
 def save_medical():
     data = request.form
 
@@ -502,7 +563,20 @@ def save_medical():
 
     return redirect(url_for('Main'))
 
-@app.route('/confirm_analysis', methods=['POST'])#確認後產生圖片顯示圖片
+#分析結果歷史紀錄
+@app.route('/medical')
+@login_required#限制訪問
+def medical():
+    conn = get_db_connection()
+    results = conn.execute(
+        'SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC',
+        (session['user_id'],)
+    ).fetchall()
+    conn.close()
+    return render_template('medical.html', results=results)
+
+#確認後產生圖片顯示圖片
+@app.route('/confirm_analysis', methods=['POST'])
 @login_required # 限制訪問
 def confirm_analysis():
     audio_path = request.form.get("audio_path")

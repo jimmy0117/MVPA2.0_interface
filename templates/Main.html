@@ -24,6 +24,14 @@
             padding: 15px;
             margin-bottom: 20px;
         }
+        .card2 {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 15px;
+            max-width: 700px;
+            margin: 0 auto 20px auto;
+        }
         h2 {
             color: #34495e;
             border-left: 6px solid #3498db;
@@ -93,13 +101,14 @@
     
     <h1>多模態嗓音病歷分析</h1>
 
-    <div class="card">
+    <div class="card2">
         <h2>歡迎，使用者{{ session['username'] }}！</h2>
         <a href="{{ url_for('logout') }}"><button>登出</button></a>
+        <a href="{{ url_for('medical') }}"><button>分析結果歷史紀錄</button></a>
     </div>
 
     <!-- 步驟 1：病歷 -->
-    <div class="card">
+    <div class="card2">
         <h2>步驟 1：填寫病歷</h2>
         <a href="{{ url_for('input_medical') }}"><button>新增病歷</button></a>
 
@@ -121,7 +130,7 @@
     </div>
 
     <!-- 步驟 2：音訊 -->
-    <div class="card">
+    <div class="card2">
         <h2>步驟 2：選擇音訊</h2>
         <form id="audioForm" enctype="multipart/form-data">
             <input type="file" id="audio_file" name="audio_file" accept=".wav,.mp3,.webm" onchange="autoUploadAudio(this)" hidden>
@@ -136,7 +145,7 @@
     </div>
 
     <!-- 步驟 3：確認 -->
-    <div class="card">
+    <div class="card2">
         <h2>步驟 3：確認</h2>
         <form id="confirmForm" action="/confirm_analysis" method="POST">
             <input type="hidden" name="audio_path" id="audioPath">
