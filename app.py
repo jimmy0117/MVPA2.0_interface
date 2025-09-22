@@ -14,6 +14,7 @@ import os
 import sqlite3
 import pandas as pd
 import joblib
+import base64
 
 # 圖片存放路徑
 IMAGE_FOLDER = 'static/images'
@@ -595,11 +596,19 @@ def save_medical():
 @login_required#限制訪問
 def medical():
     conn = get_db_connection()
-    results = conn.execute(
+    rows = conn.execute(
         'SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC',
         (session['user_id'],)
     ).fetchall()
     conn.close()
+    results = [] 
+    for r in rows: 
+        row_dict = dict(r) 
+        if row_dict.get('audio_blob'): 
+            b64_audio = base64.b64encode(row_dict['audio_blob']).decode('utf-8') 
+            row_dict['audio_src'] = f"data:audio/wav;base64,{b64_audio}" 
+        results.append(row_dict) 
+ 
     return render_template('medical.html', results=results)
 
 #確認後產生圖片顯示圖片

@@ -118,6 +118,8 @@
                             {% endif %}
                         </h3>
                     {% endif %}
+                    <h3>音檔播放：</h3>
+                    <audio controls src="{{ result['audio_src'] }}"></audio>
                     <h3>時間：{{ result['created_at'] }}</h3>
             </div>
         {% endfor %}
@@ -129,3 +131,4 @@
 
 </body>
 </html>
+<!DOCTYPE html>
