@@ -1,10 +1,10 @@
-import sqlite3#測試建立資料庫
+import sqlite3  # 測試建立資料庫
 
 def init_db():
-    conn = sqlite3.connect("database.db")  # 建立 database.db
+    conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
 
-    # 建立使用者表
+    # 使用者表
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13,7 +13,16 @@ def init_db():
     )
     """)
 
-    # 建立病歷表
+    # 醫生表
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS admins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL
+    )
+    """)
+
+    # 病歷表（型別與 app.py 同步）
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS medical_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +45,7 @@ def init_db():
         head_injury INTEGER,
         cva INTEGER,
         smoking INTEGER,
-        ppd REAL,
+        ppd INTEGER,
         drinking INTEGER,
         frequency INTEGER,
         onset_of_dysphonia INTEGER,
@@ -49,14 +58,17 @@ def init_db():
     )
     """)
 
-    # 建立分析結果表
+    # 分析結果表（與 app.py 同步）
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         record_id INTEGER,
-        result TEXT,
-        confidence REAL,
+        result1 TEXT,
+        confidence1 REAL,
+        result2 TEXT,
+        confidence2 REAL,
+        audio_blob BLOB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (record_id) REFERENCES medical_records(id)

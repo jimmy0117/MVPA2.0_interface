@@ -7,13 +7,13 @@ import datetime
 import librosa
 import librosa.display
 import matplotlib
+matplotlib.use('Agg')  # 必須在 import pyplot 前設定，避免 GUI 後端
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sqlite3
 import pandas as pd
 import joblib
-matplotlib.use('Agg')# Flask是用非 GUI 的背景線程執行，調整為非GUI後端，否則連續上傳圖片會有GUI殘留(會報錯)
 
 # 圖片存放路徑
 IMAGE_FOLDER = 'static/images'
@@ -274,64 +274,78 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user_id" not in session:
-            return redirect(url_for('Main'))
+            return redirect(url_for('login'))  # 修正：避免導向受保護頁造成無限重導
+        return f(*args, **kwargs)
+    return decorated_function
+
+# 新增：醫生權限限制
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session or not session.get("is_admin"):
+            return redirect(url_for('admin'))
         return f(*args, **kwargs)
     return decorated_function
 
 # 整理病歷資料
 def organize_records(record):
     if record:
-
-        # 時間處理：UTC -> UTC+8 (資料庫存的是UTC標準時間)
         if "created_at" in record and record["created_at"]:
             utc_time = datetime.datetime.strptime(record["created_at"], "%Y-%m-%d %H:%M:%S")
             local_time = utc_time + datetime.timedelta(hours=8)
             record["created_at"] = local_time.strftime("%Y-%m-%d %H:%M:%S")
 
+    # 安全轉 int，避免從 DB 取回字串導致對照表失效
+    def as_int(v):
+        try:
+            return int(v)
+        except Exception:
+            return v
+
     return {
         "user_id": record["username"],
-        "sex": SEX_LABELS.get(record["sex"],record["sex"]),
+        "sex": SEX_LABELS.get(as_int(record["sex"]), record["sex"]),
         "age": record["age"],
-        "narrow_pitch_range": YN_LABELS.get(record["narrow_pitch_range"],record["narrow_pitch_range"]),
-        "decreased_volume": YN_LABELS.get(record["decreased_volume"],record["decreased_volume"]),
-        "fatigue": YN_LABELS.get(record["fatigue"],record["fatigue"]),
-        "dryness": YN_LABELS.get(record["dryness"],record["dryness"]),
-        "lumping": YN_LABELS.get(record["lumping"],record["lumping"]),
-        "heartburn": YN_LABELS.get(record["heartburn"],record["heartburn"]),
-        "choking": YN_LABELS.get(record["choking"],record["choking"]),
-        "eye_dryness": YN_LABELS.get(record["eye_dryness"],record["eye_dryness"]),
-        "pnd": YN_LABELS.get(record["pnd"],record["pnd"]),
-        "diabetes": YN_LABELS.get(record["diabetes"],record["diabetes"]),
-        "hypertension": YN_LABELS.get(record["hypertension"],record["hypertension"]),
-        "cad": YN_LABELS.get(record["cad"],record["cad"]),
-        "head_and_neck_cancer": YN_LABELS.get(record["head_and_neck_cancer"],record["head_and_neck_cancer"]),
-        "head_injury": YN_LABELS.get(record["head_injury"],record["head_injury"]),
-        "cva": YN_LABELS.get(record["cva"],record["cva"]),
-        "smoking": SMOKING_LABELS.get(record["smoking"],record["smoking"]),
+        "narrow_pitch_range": YN_LABELS.get(as_int(record["narrow_pitch_range"]), record["narrow_pitch_range"]),
+        "decreased_volume": YN_LABELS.get(as_int(record["decreased_volume"]), record["decreased_volume"]),
+        "fatigue": YN_LABELS.get(as_int(record["fatigue"]), record["fatigue"]),
+        "dryness": YN_LABELS.get(as_int(record["dryness"]), record["dryness"]),
+        "lumping": YN_LABELS.get(as_int(record["lumping"]), record["lumping"]),
+        "heartburn": YN_LABELS.get(as_int(record["heartburn"]), record["heartburn"]),
+        "choking": YN_LABELS.get(as_int(record["choking"]), record["choking"]),
+        "eye_dryness": YN_LABELS.get(as_int(record["eye_dryness"]), record["eye_dryness"]),
+        "pnd": YN_LABELS.get(as_int(record["pnd"]), record["pnd"]),
+        "diabetes": YN_LABELS.get(as_int(record["diabetes"]), record["diabetes"]),
+        "hypertension": YN_LABELS.get(as_int(record["hypertension"]), record["hypertension"]),
+        "cad": YN_LABELS.get(as_int(record["cad"]), record["cad"]),
+        "head_and_neck_cancer": YN_LABELS.get(as_int(record["head_and_neck_cancer"]), record["head_and_neck_cancer"]),
+        "head_injury": YN_LABELS.get(as_int(record["head_injury"]), record["head_injury"]),
+        "cva": YN_LABELS.get(as_int(record["cva"]), record["cva"]),
+        "smoking": SMOKING_LABELS.get(as_int(record["smoking"]), record["smoking"]),
         "ppd": record["ppd"],
-        "drinking": DRINKING1_LABELS.get(record["drinking"],record["drinking"]),
-        "frequency": DRINKING2_LABELS.get(record["frequency"],record["frequency"]),
-        "onset_of_dysphonia": SYMPTOMS_LABELS.get(record["onset_of_dysphonia"],record["onset_of_dysphonia"]),
-        "noise_at_work": WORKING_LABELS.get(record["noise_at_work"],record["noise_at_work"]),
-        "diurnal_pattern": VOICE1_LABELS.get(record["diurnal_pattern"],record["diurnal_pattern"]),
-        "occupational_vocal_demand": VOICE2_LABELS.get(record["occupational_vocal_demand"],record["occupational_vocal_demand"]),
+        "drinking": DRINKING1_LABELS.get(as_int(record["drinking"]), record["drinking"]),
+        "frequency": DRINKING2_LABELS.get(as_int(record["frequency"]), record["frequency"]),
+        "onset_of_dysphonia": SYMPTOMS_LABELS.get(as_int(record["onset_of_dysphonia"]), record["onset_of_dysphonia"]),
+        "noise_at_work": WORKING_LABELS.get(as_int(record["noise_at_work"]), record["noise_at_work"]),
+        "diurnal_pattern": VOICE1_LABELS.get(as_int(record["diurnal_pattern"]), record["diurnal_pattern"]),
+        "occupational_vocal_demand": VOICE2_LABELS.get(as_int(record["occupational_vocal_demand"]), record["occupational_vocal_demand"]),
         "vhi10": record["vhi10"],
         "created_at": record["created_at"]
     }
 
 # 病例分析模型
 def predict_from_list(input_list, model_path, feature_names):
-    # 建立 DataFrame
     df = pd.DataFrame([input_list], columns=feature_names)
-    
-    # 載入模型
     model = joblib.load(model_path)
-    
-    # 預測
     y_pred = model.predict(df)
     y_pred_proba = model.predict_proba(df)
-    
-    return y_pred, y_pred_proba
+    pred_label = y_pred[0]
+    try:
+        pred_label_scalar = int(pred_label)
+    except Exception:
+        pred_label_scalar = pred_label
+    classes = getattr(model, "classes_", None)
+    return pred_label_scalar, y_pred_proba, classes  # 多回傳 classes_ 便於對應置信度
 
 # 嗓音模型
 def predict_audio_file(file_path, model_path, class_names, sr=22050, duration=3.0, n_mfcc=40, max_mfcc_length=130):
@@ -345,12 +359,15 @@ def predict_audio_file(file_path, model_path, class_names, sr=22050, duration=3.
         start = max(center - half_len, 0)
         end = min(center + half_len, len(signal))
         signal = signal[start:end]
-    # 計算 MFCC
+    # 計算 MFCC 並修正長度
     mfcc = librosa.feature.mfcc(y=signal, sr=sr, n_mfcc=n_mfcc)
-    mfcc = np.pad(mfcc, ((0, 0), (0, max_mfcc_length - mfcc.shape[1])), mode='constant')
+    if mfcc.shape[1] > max_mfcc_length:
+        mfcc = mfcc[:, :max_mfcc_length]
+    elif mfcc.shape[1] < max_mfcc_length:
+        mfcc = np.pad(mfcc, ((0, 0), (0, max_mfcc_length - mfcc.shape[1])), mode='constant')
     mfcc = mfcc[..., np.newaxis]
     X = np.array([mfcc])
-    # 載入模型並預測
+    # 載入模型并預測
     model = load_model(model_path)
     y_pred = model.predict(X)
     y_pred_class = np.argmax(y_pred, axis=1)
@@ -403,10 +420,10 @@ def login():
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
+            session['is_admin'] = False  # 一般使用者
             return redirect(url_for('Main'))
         else:
-            return render_template("login.html",error="帳號或密碼錯誤")
-
+            return render_template("login.html", error="帳號或密碼錯誤")
     return render_template('login.html')
 
 # 登出
@@ -450,15 +467,15 @@ def admin():
         if admin and check_password_hash(admin['password'], password):
             session['user_id'] = admin['id']
             session['username'] = admin['username']
+            session['is_admin'] = True  # 醫生權限
             return redirect(url_for('admin_Main'))
         else:
-            return render_template("admin.html",error="帳號或密碼錯誤")
-
+            return render_template("admin.html", error="帳號或密碼錯誤")
     return render_template('admin.html')
 
 # 醫生功能頁面
 @app.route('/admin_Main')
-@login_required
+@admin_required
 def admin_Main():
     return render_template("admin_Main.html")
 
@@ -483,6 +500,7 @@ def Main():
 
 # 上傳音訊檔案
 @app.route('/upload_audio', methods=['POST'])
+@login_required
 def upload_audio():
     file = request.files['audio_file']
     if file and allowed_file(file.filename):
@@ -495,7 +513,8 @@ def upload_audio():
         return jsonify({"error": "請上傳 .wav 或 .mp3 或 .webm 音訊檔"}), 400
     
 # 上傳錄音檔案
-@app.route('/record_audio', methods=['POST'])  
+@app.route('/record_audio', methods=['POST'])
+@login_required
 def record_audio():
     file = request.files['audio_data']
     if file:
@@ -514,11 +533,19 @@ def input_medical():
 
 # 存病歷資料
 @app.route('/save_medical', methods=['POST'])
+@login_required
 def save_medical():
     data = request.form
-
-    # 計算 VHI-10 總分（10 個欄位相加）
     vhi10_total = sum(int(data.get(f'vhi{i}', 0)) for i in range(1, 11))
+
+    # 入庫前統一轉 int，避免 DB 寫入字串造成後續型別不一致
+    int_fields = [
+        'sex','age','narrow_pitch_range','decreased_volume','fatigue','dryness','lumping','heartburn',
+        'choking','eye_dryness','pnd','diabetes','hypertension','cad','head_and_neck_cancer','head_injury',
+        'cva','smoking','ppd','drinking','frequency','onset_of_dysphonia','noise_at_work',
+        'diurnal_pattern','occupational_vocal_demand'
+    ]
+    val = {k: int(data[k]) for k in int_fields}
 
     conn = get_db_connection()
     conn.execute("""
@@ -531,31 +558,31 @@ def save_medical():
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         session['user_id'],
-        data['sex'],
-        data['age'],
-        data['narrow_pitch_range'],
-        data['decreased_volume'],
-        data['fatigue'],
-        data['dryness'],
-        data['lumping'],
-        data['heartburn'],
-        data['choking'],
-        data['eye_dryness'],
-        data['pnd'],
-        data['diabetes'],
-        data['hypertension'],
-        data['cad'],
-        data['head_and_neck_cancer'],
-        data['head_injury'],
-        data['cva'],
-        data['smoking'],
-        data['ppd'],
-        data['drinking'],
-        data['frequency'],
-        data['onset_of_dysphonia'],
-        data['noise_at_work'],
-        data['diurnal_pattern'],
-        data['occupational_vocal_demand'],
+        val['sex'],
+        val['age'],
+        val['narrow_pitch_range'],
+        val['decreased_volume'],
+        val['fatigue'],
+        val['dryness'],
+        val['lumping'],
+        val['heartburn'],
+        val['choking'],
+        val['eye_dryness'],
+        val['pnd'],
+        val['diabetes'],
+        val['hypertension'],
+        val['cad'],
+        val['head_and_neck_cancer'],
+        val['head_injury'],
+        val['cva'],
+        val['smoking'],
+        val['ppd'],
+        val['drinking'],
+        val['frequency'],
+        val['onset_of_dysphonia'],
+        val['noise_at_work'],
+        val['diurnal_pattern'],
+        val['occupational_vocal_demand'],
         vhi10_total
     ))
     conn.commit()
@@ -577,91 +604,112 @@ def medical():
 
 #確認後產生圖片顯示圖片
 @app.route('/confirm_analysis', methods=['POST'])
-@login_required # 限制訪問
+@login_required
 def confirm_analysis():
     audio_path = request.form.get("audio_path")
+    # 先檢查音訊是否存在
+    if not audio_path or not os.path.exists(audio_path):
+        # 撈最新病歷供頁面顯示
+        conn = get_db_connection()
+        record = conn.execute("""
+        SELECT medical_records.*, users.username
+        FROM medical_records
+        JOIN users ON medical_records.user_id = users.id
+        WHERE username = ?
+        ORDER BY medical_records.created_at DESC LIMIT 1""", (session['username'],)).fetchone()
+        conn.close()
+        record = dict(record) if record else None
+        record = organize_records(record) if record else None
+        return render_template("Main.html",
+                               error="沒有找到音訊，請重新錄音或上傳",
+                               record=record,
+                               field_labels=FIELD_LABELS)
 
-    # 撈最新病歷
+    # 撈最新病歷（後續分析也需要）
     conn = get_db_connection()
     record = conn.execute("""
     SELECT medical_records.*, users.username
     FROM medical_records
     JOIN users ON medical_records.user_id = users.id
     WHERE username = ?
-    ORDER BY medical_records.created_at DESC LIMIT 1""",(session['username'],)).fetchone()
+    ORDER BY medical_records.created_at DESC LIMIT 1""", (session['username'],)).fetchone()
     conn.close()
 
-    record = dict(record) if record else None
-    sample_list = [record[col] for col in MODEL_FEATURE_ORDER]
+    if not record:
+        return render_template("Main.html",
+                               error="請先新增病歷後再分析",
+                               record=None,
+                               field_labels=FIELD_LABELS)
+
+    record = dict(record)
+    # 建立模型輸入時先轉 int，避免字串型別造成模型報錯或行為不一致
+    def as_int(v):
+        try:
+            return int(v)
+        except Exception:
+            return v
+    sample_list = [as_int(record[col]) for col in MODEL_FEATURE_ORDER]
     record_id = record["id"]
     record_user = record["user_id"]
-    record = organize_records(record)
+    record_pretty = organize_records(record)
 
-    #病例分析模型
+    # 病例分析模型：回傳 pred1、proba 與 classes_，以正確對應置信度
     model_path1 = 'best_svm_model.pkl'
-    pred1, proba1= predict_from_list(sample_list, model_path1, feature_names)
-    if pred1:
-        if pred1==1:
-            type1="結構性病變"
-            conf1=proba1[0][0]
-        if pred1==2:
-            type1="非結構性病變"
-            conf1=proba1[0][1]
-        if pred1==3:
-            type1="健康"
-            conf1=proba1[0][2]
+    pred1, proba1, classes1 = predict_from_list(sample_list, model_path1, feature_names)
+    type1, conf1 = None, None
+    if pred1 == 1:
+        type1 = "結構性病變"
+    elif pred1 == 2:
+        type1 = "非結構性病變"
+    elif pred1 == 3:
+        type1 = "健康"
 
-    #結構性病變嗓音模型
-    type2=None
-    conf2=None
-    if pred1==1:
+    # 依 classes_ 找到 pred1 對應的索引，避免取錯機率
+    if classes1 is not None:
+        classes_list = list(classes1)
+        try:
+            idx = classes_list.index(pred1)
+        except ValueError:
+            idx = int(np.argmax(proba1[0]))
+        conf1 = float(proba1[0][idx])
+    else:
+        conf1 = float(np.max(proba1[0]))
+
+    # 結構性病變嗓音模型
+    type2, conf2 = None, None
+    if pred1 == 1:
         model_path2 = 'smote_cnn_model_0.86.h5'
         class_names = [
-        '1.Polyp & 2.Nodules', '13.Ulcer', '15.Dysplasia', '16.Laryngeal cancer', '17.Papilloma',
-        '19.Scar', '20.Varix',
-        '5.Vocal paresis', '6.Vocal palsy', "7.Reinke's edema", '8.Sulcus', '11.Vocal process granuloma', '12.Fibrous mass']
+            '1.Polyp & 2.Nodules', '13.Ulcer', '15.Dysplasia', '16.Laryngeal cancer', '17.Papilloma',
+            '19.Scar', '20.Varix', '5.Vocal paresis', '6.Vocal palsy', "7.Reinke's edema",
+            '8.Sulcus', '11.Vocal process granuloma', '12.Fibrous mass'
+        ]
         chinese_name = ['聲帶息肉 & 聲帶結節','聲帶潰瘍','表皮異常增生','喉癌','乳突瘤',
-                        '聲帶疤痕','微血管增生','單側聲帶輕癱','單側聲帶麻痹','慢性聲帶水腫'
-                        ,'聲帶溝','聲帶突肉芽腫','纖維斑塊']
+                        '聲帶疤痕','微血管增生','單側聲帶輕癱','單側聲帶麻痹','慢性聲帶水腫',
+                        '聲帶溝','聲帶突肉芽腫','纖維斑塊']
         pred2, proba2 = predict_audio_file(audio_path, model_path2, class_names)
-        for i in range(len(class_names)):
-            if pred2==class_names[i]:
+        for i, cname in enumerate(class_names):
+            if pred2 == cname:
                 type2 = chinese_name[i]
-                conf2 = proba2[i]
+                conf2 = float(proba2[i])
                 break
 
-    #非結構性病變嗓音模型
-    if pred1==2:
+    # 非結構性病變嗓音模型
+    if pred1 == 2:
         model_path2 = 'smote_non_cnn_model_0.84.h5'
         class_names = ['9.Muscle tension dysphonia','10.Presbyphonia','14.Spasmodic dysphonia','18.Tremor']
-
         pred2, proba2 = predict_audio_file(audio_path, model_path2, class_names)
-        if pred2:
-            if pred2=='9.Muscle tension dysphonia':
-                type2="肌肉緊張性發聲異常"
-                conf2=proba2[0]
-            if pred2=='10.Presbyphonia':
-                type2="嗓音老化"
-                conf2=proba2[1]
-            if pred2=='14.Spasmodic dysphonia':
-                type2="聲帶痙攣"
-                conf2=proba2[2]
-            if pred2=='18.Tremor':
-                type2="聲帶顫抖"
-                conf2=proba2[3]
-    type3=None
-    #信心程度不高的警告
-    if conf2 is not None:
-        type3 = 1 if (conf1 <0.8 or conf2 < 0.8) else None
-    else:
-        type3 = 1 if (conf1 <0.8) else None
+        if pred2 == '9.Muscle tension dysphonia':
+            type2, conf2 = "肌肉緊張性發聲異常", float(proba2[0])
+        elif pred2 == '10.Presbyphonia':
+            type2, conf2 = "嗓音老化", float(proba2[1])
+        elif pred2 == '14.Spasmodic dysphonia':
+            type2, conf2 = "聲帶痙攣", float(proba2[2])
+        elif pred2 == '18.Tremor':
+            type2, conf2 = "聲帶顫抖", float(proba2[3])
 
-    #確認回傳
-    if not audio_path or not os.path.exists(audio_path):
-        return render_template("Main.html",
-                               error="沒有找到音訊，請重新錄音或上傳",
-                               record=record,
-                               field_labels=FIELD_LABELS)
+    # 信心程度低的提示旗標
+    type3 = 1 if ((conf1 is not None and conf1 < 0.8) or (conf2 is not None and conf2 < 0.8)) else None
 
     try:
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -669,58 +717,44 @@ def confirm_analysis():
         if result is None:
             return render_template("Main.html",
                                    error="音訊讀取錯誤，請確認檔案格式",
-                                   record=record,
+                                   record=record_pretty,
                                    field_labels=FIELD_LABELS)
-
         waveform_img, mel_img, mfcc_img = result
 
-        #存結果
+        # 存結果
         with open(audio_path, "rb") as f:
             audio_blob = f.read()
         conn = get_db_connection()
         conn.execute("""
             INSERT INTO results (user_id, record_id, result1, confidence1, result2, confidence2, audio_blob)
             VALUES (?,?,?,?,?,?,?)
-            """, (
-                record_user,
-                record_id,
-                type1,
-                float(conf1) if conf1 is not None else None,
-                type2,
-                float(conf2) if conf2 is not None else None,
-                audio_blob
-            ))
+        """, (
+            record_user,
+            record_id,
+            type1,
+            float(conf1) if conf1 is not None else None,
+            type2,
+            float(conf2) if conf2 is not None else None,
+            audio_blob
+        ))
         conn.commit()
         conn.close()
 
-        if pred1==3:
-            return render_template("Main.html",
+        return render_template("Main.html",
                                waveform_img=waveform_img,
                                mel_img=mel_img,
                                mfcc_img=mfcc_img,
-                               record=record,
+                               record=record_pretty,
                                type1=type1,
                                conf1=conf1,
                                type2=type2,
                                conf2=conf2,
                                type3=type3,
                                field_labels=FIELD_LABELS)
-        else:
-            return render_template("Main.html",
-                                waveform_img=waveform_img,
-                                mel_img=mel_img,
-                                mfcc_img=mfcc_img,
-                                record=record,
-                                type1=type1,
-                                conf1=conf1,
-                                type2=type2,
-                                conf2=conf2,
-                                type3=type3,
-                                field_labels=FIELD_LABELS)
     except Exception as e:
         return render_template("Main.html",
                                error=f"分析失敗：{e}",
-                               record=record,
+                               record=record_pretty,
                                field_labels=FIELD_LABELS)
 
 if __name__ == '__main__':
