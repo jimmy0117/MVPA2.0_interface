@@ -3,103 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多模態嗓音病歷分析</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #f7f9fc;
-            margin: 0;
-            padding: 15px;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 1.6em;
-        }
-        .card {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .card2 {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 15px;
-            max-width: 700px;
-            margin: 0 auto 20px auto;
-        }
-        h2 {
-            color: #34495e;
-            border-left: 6px solid #3498db;
-            padding-left: 10px;
-            font-size: 1.2em;
-        }
-        table {
-            border-collapse: collapse;
-            width: auto;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        table td {
-            border: 1px solid #ccc;
-            padding: 6px;
-            word-break: break-word;
-        }
-        .table-wrapper {
-            overflow-x: auto;
-        }
-        .ok { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        button {
-            margin: 6px 4px;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 6px;
-            background: #3498db;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-        }
-        button:hover {
-            background: #2980b9;
-        }
-        #status {
-            margin-top: 8px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .result-images {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .result-images img {
-            width: 100%;
-            max-width: 100%;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            background: #fff;
-            padding: 5px;
-        }
-        @media (min-width: 768px) {
-            .result-images {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-    </style>
+    <title>多模態嗓音病歷摘要分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
     
-    <h1>多模態嗓音病歷分析</h1>
+    <h1>多模態嗓音病歷摘要分析</h1>
 
     <div class="card2">
         <h2>歡迎，使用者{{ session['username'] }}！</h2>
@@ -109,21 +18,80 @@
 
     <!-- 步驟 1：病歷 -->
     <div class="card2">
-        <h2>步驟 1：填寫病歷</h2>
+        <h2>步驟 1：填寫病歷摘要</h2>
         <a href="{{ url_for('input_medical') }}"><button>新增病歷</button></a>
 
         {% if record %}
-            <p class="ok">最新病歷已填寫 ✔</p>
-            <div class="table-wrapper">
-                <table>
-                    {% for key, value in record.items() %}
-                        <tr>
-                            <td>{{ field_labels.get(key, key) }}</td>
-                            <td>{{ value }}</td>
-                        </tr>
-                    {% endfor %}
-                </table>
-            </div>
+            <!-- 預設收合：移除 open 屬性 -->
+            <details class="record-details">
+                <summary>
+                    <span>最新病歷</span>
+                    <span class="ok-badge">已填寫 ✔</span>
+                    <span class="chevron"></span>
+                </summary>
+                <div class="collapsible-content">
+                    {% set group1 = [
+                        'user_id','sex','age','created_at',
+                        'narrow_pitch_range','decreased_volume','fatigue','dryness','lumping',
+                        'heartburn','choking','eye_dryness','pnd','diabetes','hypertension',
+                        'cad','head_and_neck_cancer','head_injury','cva'
+                    ] %}
+                    {% set group2 = [
+                        'smoking','ppd','drinking','frequency',
+                        'onset_of_dysphonia','noise_at_work','diurnal_pattern','occupational_vocal_demand'
+                    ] %}
+                    {% set group3 = [
+                        'vhi1','vhi2','vhi3','vhi4','vhi5','vhi6','vhi7','vhi8','vhi9','vhi10_q','vhi10'
+                    ] %}
+
+                    <div class="record-grid">
+                        <!-- 基本資料與症狀 -->
+                        <div class="record-section">
+                            <h3>基本資料與症狀</h3>
+                            <div class="table-wrapper">
+                                <table>
+                                    {% for k in group1 if record.get(k) is not none %}
+                                        <tr>
+                                            <td>{{ field_labels.get(k, k) }}</td>
+                                            <td>{{ record[k] }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 生活習慣與發聲相關 -->
+                        <div class="record-section">
+                            <h3>生活習慣與發聲相關</h3>
+                            <div class="table-wrapper">
+                                <table>
+                                    {% for k in group2 if record.get(k) is not none %}
+                                        <tr>
+                                            <td>{{ field_labels.get(k, k) }}</td>
+                                            <td>{{ record[k] }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- VHI-10 -->
+                        <div class="record-section">
+                            <h3>VHI-10</h3>
+                            <div class="table-wrapper">
+                                <table>
+                                    {% for k in group3 if record.get(k) is not none %}
+                                        <tr>
+                                            <td>{{ field_labels.get(k, k) }}</td>
+                                            <td>{{ record[k] }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
         {% else %}
             <p class="error">目前沒有病歷資料，請先新增</p>
         {% endif %}
@@ -160,15 +128,15 @@
         <div class="result-images">
             <div>
                 <h3>Waveform</h3>
-                <img src="{{ url_for('static', filename='images/' + waveform_img) }}">
+                <img class="zoomable" src="{{ url_for('static', filename='images/' + waveform_img) }}">
             </div>
             <div>
                 <h3>Mel-Spectrogram</h3>
-                <img src="{{ url_for('static', filename='images/' + mel_img) }}">
+                <img class="zoomable" src="{{ url_for('static', filename='images/' + mel_img) }}">
             </div>
             <div>
                 <h3>MFCC</h3>
-                <img src="{{ url_for('static', filename='images/' + mfcc_img) }}">
+                <img class="zoomable" src="{{ url_for('static', filename='images/' + mfcc_img) }}">
             </div>
             {% if type1 and conf1 %}
                 <div style="margin-bottom: 15px; padding: 10px; background: #ecf9ff; border-radius: 6px;">
@@ -190,6 +158,12 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Lightbox Modal -->
+    <div id="imgModal" class="img-modal" aria-hidden="true">
+        <button id="imgModalClose" class="close-btn" aria-label="Close">×</button>
+        <img id="imgModalImg" src="" alt="preview">
+    </div>
 
     {% if error %}
         <script>alert("{{ error }}");</script>
@@ -281,6 +255,34 @@ document.getElementById("audioPath").addEventListener("change", updateConfirmBut
 
 // 頁面載入後執行一次
 updateConfirmButton();
+
+// 點圖放大 Lightbox
+(function() {
+    const modal = document.getElementById('imgModal');
+    const modalImg = document.getElementById('imgModalImg');
+    const closeBtn = document.getElementById('imgModalClose');
+
+    document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (t && t.matches('img.zoomable')) {
+            modalImg.src = t.src;
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+    });
+    const closeModal = () => {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        modalImg.src = '';
+    };
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    closeBtn.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+})();
 </script>
 </body>
 </html>

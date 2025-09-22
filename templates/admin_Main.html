@@ -4,105 +4,274 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>多模態嗓音病歷分析</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #f7f9fc;
-            margin: 0;
-            padding: 15px;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 1.6em;
-        }
-        .card {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .card2 {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 15px;
-            max-width: 700px;
-            margin: 0 auto 20px auto;
-        }
-        h2 {
-            color: #34495e;
-            border-left: 6px solid #3498db;
-            padding-left: 10px;
-            font-size: 1.2em;
-        }
-        table {
-            border-collapse: collapse;
-            width: auto;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        table td {
-            border: 1px solid #ccc;
-            padding: 6px;
-            word-break: break-word;
-        }
-        .table-wrapper {
-            overflow-x: auto;
-        }
-        .ok { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        button {
-            margin: 6px 4px;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 6px;
-            background: #3498db;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-        }
-        button:hover {
-            background: #2980b9;
-        }
-        #status {
-            margin-top: 8px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .result-images {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .result-images img {
-            width: 100%;
-            max-width: 100%;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            background: #fff;
-            padding: 5px;
-        }
-        @media (min-width: 768px) {
-            .result-images {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-    
     <h1>病患分析結果查詢</h1>
+
+    <div class="card2">
+        <h2>查詢使用者</h2>
+        <form class="search-bar" method="get" action="{{ url_for('admin_Main') }}">
+            <input type="text" name="q" placeholder="輸入使用者帳號（支援部分關鍵字）" value="{{ q or '' }}">
+            <button type="submit">搜尋</button>
+        </form>
+
+        {% if matches and matches|length > 0 %}
+            <div class="list">
+                {% for u in matches %}
+                    <div class="list-item">
+                        <a href="{{ url_for('admin_Main') }}?user_id={{ u.id }}">{{ u.username }}</a>
+                        <span class="time" style="color:#9aa4b2;">ID: {{ u.id }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% elif q %}
+            <p class="error">找不到符合「{{ q }}」的使用者。</p>
+        {% else %}
+            <p style="color:#718096;font-size:14px;">請先以帳號關鍵字搜尋，或直接輸入完整帳號。</p>
+        {% endif %}
+    </div>
+
+    {% if selected_user %}
+        <div class="card2">
+            <h2>使用者：{{ selected_user.username }}</h2>
+
+            {% if record %}
+                <!-- 病歷摘要：預設收合 -->
+                <details class="record-details">
+                    <summary>
+                        <span>對應病歷摘要（最新一筆）</span>
+                        <span class="ok-badge">可展開檢視</span>
+                        <span class="chevron"></span>
+                    </summary>
+                    <div class="collapsible-content">
+                        {% set group1 = [
+                            'user_id','sex','age','created_at',
+                            'narrow_pitch_range','decreased_volume','fatigue','dryness','lumping',
+                            'heartburn','choking','eye_dryness','pnd','diabetes','hypertension',
+                            'cad','head_and_neck_cancer','head_injury','cva'
+                        ] %}
+                        {% set group2 = [
+                            'smoking','ppd','drinking','frequency',
+                            'onset_of_dysphonia','noise_at_work','diurnal_pattern','occupational_vocal_demand'
+                        ] %}
+                        {% set group3 = [
+                            'vhi1','vhi2','vhi3','vhi4','vhi5','vhi6','vhi7','vhi8','vhi9','vhi10_q','vhi10'
+                        ] %}
+
+                        <div class="record-grid">
+                            <div class="record-section">
+                                <h3>基本資料與症狀</h3>
+                                <div class="table-wrapper">
+                                    <table>
+                                        {% for k in group1 if record.get(k) is not none %}
+                                            <tr>
+                                                <td>{{ field_labels.get(k, k) }}</td>
+                                                <td>{{ record[k] }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="record-section">
+                                <h3>生活習慣與發聲相關</h3>
+                                <div class="table-wrapper">
+                                    <table>
+                                        {% for k in group2 if record.get(k) is not none %}
+                                            <tr>
+                                                <td>{{ field_labels.get(k, k) }}</td>
+                                                <td>{{ record[k] }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="record-section">
+                                <h3>VHI-10</h3>
+                                <div class="table-wrapper">
+                                    <table>
+                                        {% for k in group3 if record.get(k) is not none %}
+                                            <tr>
+                                                <td>{{ field_labels.get(k, k) }}</td>
+                                                <td>{{ record[k] }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            {% else %}
+                <p class="error">沒有病歷摘要可顯示。</p>
+            {% endif %}
+
+            <!-- 既有：歷史檢查紀錄 -->
+            {% if results and results|length > 0 %}
+                {% for r in results %}
+                    <div class="result-card">
+                        <div class="result-header">
+                            <span class="badge primary">主類別：{{ r.result1 or '—' }}</span>
+                            {% if r.confidence1 is not none %}
+                                <span>信心：{{ (r.confidence1 * 10000 // 1 / 100) | round(2) }}%</span>
+                            {% endif %}
+                            {% if r.result2 %}
+                                <span class="badge">細類別：{{ r.result2 }}</span>
+                                {% if r.confidence2 is not none %}
+                                    <span>信心：{{ (r.confidence2 * 10000 // 1 / 100) | round(2) }}%</span>
+                                {% endif %}
+                            {% endif %}
+                            <span class="time">時間：{{ r.created_at }}</span>
+                        </div>
+
+                        {% if r.audio_src %}
+                            <audio controls src="{{ r.audio_src }}"></audio>
+                        {% endif %}
+
+                        {% if r.waveform_src or r.mel_src or r.mfcc_src %}
+                            <div class="grid-images">
+                                {% if r.waveform_src %}
+                                    <div>
+                                        <h3 style="margin:4px 0;">Waveform</h3>
+                                        <img class="zoomable" src="{{ r.waveform_src }}" alt="waveform">
+                                    </div>
+                                {% endif %}
+                                {% if r.mel_src %}
+                                    <div>
+                                        <h3 style="margin:4px 0;">Mel-Spectrogram</h3>
+                                        <img class="zoomable" src="{{ r.mel_src }}" alt="mel">
+                                    </div>
+                                {% endif %}
+                                {% if r.mfcc_src %}
+                                    <div>
+                                        <h3 style="margin:4px 0;">MFCC</h3>
+                                        <img class="zoomable" src="{{ r.mfcc_src }}" alt="mfcc">
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <p style="color:#718096;font-size:13px;margin-top:6px;">此筆紀錄無圖片資料。</p>
+                        {% endif %}
+
+                        {% if r.record %}
+                            <!-- 這筆結果對應病歷摘要（依檢測時間回溯最近的一筆） -->
+                            <details class="record-details" style="margin-top:10px;">
+                                <summary>
+                                    <span>對應病歷摘要</span>
+                                    <span class="ok-badge">可展開檢視</span>
+                                    <span class="chevron"></span>
+                                </summary>
+                                <div class="collapsible-content">
+                                    {% set group1 = [
+                                        'user_id','sex','age','created_at',
+                                        'narrow_pitch_range','decreased_volume','fatigue','dryness','lumping',
+                                        'heartburn','choking','eye_dryness','pnd','diabetes','hypertension',
+                                        'cad','head_and_neck_cancer','head_injury','cva'
+                                    ] %}
+                                    {% set group2 = [
+                                        'smoking','ppd','drinking','frequency',
+                                        'onset_of_dysphonia','noise_at_work','diurnal_pattern','occupational_vocal_demand'
+                                    ] %}
+                                    {% set group3 = [
+                                        'vhi1','vhi2','vhi3','vhi4','vhi5','vhi6','vhi7','vhi8','vhi9','vhi10_q','vhi10'
+                                    ] %}
+
+                                    <div class="record-grid">
+                                        <div class="record-section">
+                                            <h3>基本資料與症狀</h3>
+                                            <div class="table-wrapper">
+                                                <table>
+                                                    {% for k in group1 if r.record.get(k) is not none %}
+                                                        <tr>
+                                                            <td>{{ field_labels.get(k, k) }}</td>
+                                                            <td>{{ r.record[k] }}</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div class="record-section">
+                                            <h3>生活習慣與發聲相關</h3>
+                                            <div class="table-wrapper">
+                                                <table>
+                                                    {% for k in group2 if r.record.get(k) is not none %}
+                                                        <tr>
+                                                            <td>{{ field_labels.get(k, k) }}</td>
+                                                            <td>{{ r.record[k] }}</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div class="record-section">
+                                            <h3>VHI-10</h3>
+                                            <div class="table-wrapper">
+                                                <table>
+                                                    {% for k in group3 if r.record.get(k) is not none %}
+                                                        <tr>
+                                                            <td>{{ field_labels.get(k, k) }}</td>
+                                                            <td>{{ r.record[k] }}</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+                        {% else %}
+                            <p class="error" style="margin-top:8px;">此筆檢查時間點之前沒有可對應的病歷摘要。</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="error">此使用者尚無檢查紀錄。</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <!-- Lightbox Modal -->
+    <div id="imgModal" class="img-modal" aria-hidden="true">
+        <button id="imgModalClose" class="close-btn" aria-label="Close">×</button>
+        <img id="imgModalImg" src="" alt="preview">
+    </div>
 
     {% if error %}
         <script>alert("{{ error }}");</script>
     {% endif %}
+
+    <script>
+    // 點圖放大 Lightbox（與 Main.html 相同邏輯）
+    (function() {
+        const modal = document.getElementById('imgModal');
+        const modalImg = document.getElementById('imgModalImg');
+        const closeBtn = document.getElementById('imgModalClose');
+
+        document.addEventListener('click', (e) => {
+            const t = e.target;
+            if (t && t.matches('img.zoomable')) {
+                modalImg.src = t.src;
+                modal.classList.add('open');
+                modal.setAttribute('aria-hidden', 'false');
+            }
+        });
+        const closeModal = () => {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            modalImg.src = '';
+        };
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        closeBtn.addEventListener('click', closeModal);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    })();
+    </script>
 </body>
 </html>

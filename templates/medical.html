@@ -4,131 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>分析歷史紀錄</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #f7f9fc;
-            margin: 0;
-            padding: 15px;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 1.6em;
-        }
-        .card {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 15px;
-            max-width: 700px;
-            margin: 0 auto 20px auto;
-        }
-        h2 {
-            color: #34495e;
-            border-left: 6px solid #3498db;
-            padding-left: 10px;
-            font-size: 1.2em;
-        }
-        table {
-            border-collapse: collapse;
-            width: auto;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        table td {
-            border: 1px solid #ccc;
-            padding: 6px;
-            word-break: break-word;
-        }
-        .table-wrapper {
-            overflow-x: auto;
-        }
-        .ok { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        button {
-            margin: 6px 4px;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 6px;
-            background: #3498db;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-        }
-        button:hover {
-            background: #2980b9;
-        }
-        #status {
-            margin-top: 8px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .result-images {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .result-images img {
-            width: 100%;
-            max-width: 100%;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            background: #fff;
-            padding: 5px;
-        }
-        @media (min-width: 768px) {
-            .result-images {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
     <h1>歷史分析結果</h1>
-    <div class="card">
-        <a href="{{ url_for('Main') }}"><button>返回</button></a>
+    <div class="card card--narrow">
+        <a href="{{ url_for('Main') }}"><button class="btn btn-primary">返回</button></a>
     </div>
     {% if results and results|length > 0 %}
         {% for result in results %}
-            <div class="card">
-                    <h3>疾病類型：{{ result['result1'] }}</h3>
-                    <h3>信心程度：{{ (result['confidence1'] * 10000 // 1 / 100) | round(2)}}%
-                        {% if result['confidence1'] < 0.8 %}
-                                <span style="color: red;">
-                                    (信心程度低於80%，建議做詳細檢查)
-                                </span>
+            <div class="card card--narrow">
+                <h3>疾病類型：{{ result['result1'] }}</h3>
+                <h3>信心程度：{{ (result['confidence1'] * 10000 // 1 / 100) | round(2)}}%
+                    {% if result['confidence1'] < 0.8 %}
+                        <span style="color: red;">
+                            (信心程度低於80%，建議做詳細檢查)
+                        </span>
+                    {% endif %}
+                </h3>
+                {% if result['result2'] %}
+                    <h3>疾病類型：{{ result['result2'] }}</h3>
+                {% endif %}
+                {% if result['confidence2'] %}
+                    <h3>信心程度：{{ (result['confidence2'] * 10000 // 1 / 100) | round(2)}}%
+                        {% if result['confidence2'] < 0.8 %}
+                            <span style="color: red;">
+                                (信心程度低於80%，建議做詳細檢查)
+                            </span>
                         {% endif %}
                     </h3>
-                    {% if result['result2'] %}
-                        <h3>疾病類型：{{ result['result2'] }}</h3>
-                    {% endif %}
-                    {% if result['confidence2'] %}
-                        <h3>信心程度：{{ (result['confidence2'] * 10000 // 1 / 100) | round(2)}}%
-                            {% if result['confidence2'] < 0.8 %}
-                                <span style="color: red;">
-                                    (信心程度低於80%，建議做詳細檢查)
-                                </span>
-                            {% endif %}
-                        </h3>
-                    {% endif %}
-                    <h3>音檔播放：</h3>
-                    <audio controls src="{{ result['audio_src'] }}"></audio>
-                    <h3>時間：{{ result['created_at'] }}</h3>
+                {% endif %}
+                <h3>音檔播放：</h3>
+                <audio controls src="{{ result['audio_src'] }}"></audio>
+                <h3>時間：{{ result['created_at'] }}</h3>
             </div>
         {% endfor %}
     {% else %}
-        <div class="card">
+        <div class="card card--narrow">
             <h3 style="color: red;">目前沒有分析結果。</h3>
         </div>
     {% endif %}
-
 </body>
 </html>
-<!DOCTYPE html>

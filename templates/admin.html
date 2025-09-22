@@ -4,104 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>醫生登入</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #f7f9fc;
-            margin: 0;
-            padding: 20px;
-        }
-        .card {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 20px;
-            max-width: 400px;
-            margin: 80px auto;
-        }
-        h2 {
-            text-align: center;
-            color: #34495e;
-        }
-        form div {
-            display: flex;
-            align-items: center;
-            margin-top: 12px;
-        }
-        label {
-            min-width: 60px;
-            font-weight: bold;
-            margin-right: 10px;
-            color: #2c3e50;
-        }
-        input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 15px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            margin-top: 20px;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            background: #db3434;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #b92929;
-        }
-        .btn{
-            width: auto;
-            margin: 6px 4px;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 6px;
-            background: #db3434;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        @media (max-width: 480px) {
-            .card {
-                margin: 40px 15px;
-                padding: 15px;
-            }
-            form div {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            label {
-                margin: 0 0 6px 2px;
-                text-align: left;
-                min-width: auto;
-            }
-            input {
-                width: 100%;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-    <a href="{{ url_for('index') }}"><button class="btn">返回</button></a>
-    <div class="card">
+    <a href="{{ url_for('index') }}"><button class="btn btn-danger">返回</button></a>
+    <div class="card card--auth">
         <h2>醫生登入</h2>
         <form method="POST">
-            <div>
+            <div class="form-row">
                 <label>帳號</label>
                 <input type="text" name="username" required>
             </div>
-            <div>
+            <div class="form-row">
                 <label>密碼</label>
                 <input type="password" name="password" required>
             </div>
-            <button type="submit">登入</button>
+            <button type="submit" class="btn btn-danger btn--block">登入</button>
         </form>
     </div>
     {% if error %}

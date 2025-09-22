@@ -1,0 +1,316 @@
+/* 基礎版型 */
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f7f9fc;
+  margin: 0;
+  padding: 15px;
+}
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.6em;
+}
+h2 {
+  color: #34495e;
+  border-left: 6px solid #3498db;
+  padding-left: 10px;
+  font-size: 1.2em;
+}
+
+/* 卡片 */
+.card,
+.card2 {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  padding: 15px;
+  margin-bottom: 20px;
+}
+.card2 {
+  max-width: 700px;
+  margin: 0 auto 20px auto;
+}
+.card--narrow {
+  max-width: 700px;
+  margin: 0 auto 20px auto;
+}
+/* 新增：驗證頁窄版卡片 */
+.card--auth {
+  max-width: 420px;
+  margin: 40px auto 20px auto;
+}
+.card--home {
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  padding: 30px;
+  max-width: 600px;
+  margin: 100px auto;
+  text-align: center;
+}
+
+/* 表格容器 */
+.table-wrapper { overflow-x: auto; }
+table {
+  border-collapse: collapse;
+  width: auto;
+  margin-top: 10px;
+  font-size: 14px;
+}
+table td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  word-break: break-word;
+}
+
+.ok { color: green; font-weight: bold; }
+.error { color: red; font-weight: bold; }
+#status { margin-top: 8px; font-weight: bold; font-size: 14px; }
+
+/* 共用按鈕 */
+button {
+  margin: 6px 4px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #3498db;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+button:hover { background: #2980b9; }
+button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+/* 自訂按鈕類別 */
+.btn { padding: 10px 18px; border-radius: 6px; cursor: pointer; border: none; color: #fff; }
+.btn--block { width: 100%; }
+.btn-primary { background: #3498db; }
+.btn-primary:hover { background: #2980b9; }
+.btn-success { background: #2ecc71; }
+.btn-success:hover { background: #26ab5e; }
+.btn-danger { background: #db3434; }
+.btn-danger:hover { background: #b92929; }
+
+/* 首頁方塊按鈕 */
+.btn-row {
+  display: flex;
+  justify-content: center;
+  gap: 5vw;
+  margin-bottom: 10px;
+}
+.square-btn {
+  width: clamp(100px, 20vw, 200px);
+  height: clamp(100px, 20vw, 200px);
+  border: none;
+  border-radius: 16px;
+  font-size: clamp(20px, 3vw, 36px);
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 2px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.05s;
+}
+.square-btn:active { transform: scale(0.95); box-shadow: 0 1px 4px rgba(0,0,0,0.18); filter: brightness(0.95); }
+.login-btn { background: #3498db; color: white; }
+.admin-btn { background: #c32828; color: white; }
+.btn-row a { text-decoration: none; }
+
+@media (max-width: 600px) {
+  .btn-row { flex-direction: column; gap: 6vw; align-items: center; }
+  .square-btn {
+    width: clamp(60px, 40vw, 120px);
+    height: clamp(60px, 40vw, 120px);
+    font-size: clamp(16px, 6vw, 22px);
+  }
+}
+
+/* 連結區塊 */
+.link { text-align: center; margin-top: 15px; font-size: 14px; }
+.link a { color: #3498db; text-decoration: none; }
+.link a:hover { text-decoration: underline; }
+
+/* 表單佈局（登入/註冊/醫師註冊） */
+form .form-row { display: flex; align-items: center; margin-top: 12px; }
+label {
+  min-width: 60px;
+  font-weight: bold;
+  margin-right: 10px;
+  color: #2c3e50;
+}
+input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .card { margin: 40px 15px; padding: 15px; }
+  form .form-row { flex-direction: column; align-items: flex-start; }
+  label { margin: 0 0 6px 2px; text-align: left; min-width: auto; }
+  input { width: 100%; }
+}
+
+/* 分析結果圖片區 */
+.result-images {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+  margin-top: 15px;
+}
+.result-images img {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 5px;
+}
+@media (min-width: 768px) {
+  .result-images { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* 折疊卡片（病歷摘要） */
+details.record-details {
+  border: 1px solid #e3e9ef;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  margin-top: 10px;
+}
+details.record-details summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f5faff 0%, #eef5fb 100%);
+  font-weight: 600;
+  color: #2c3e50;
+}
+details.record-details summary::-webkit-details-marker { display: none; }
+.chevron {
+  width: 10px; height: 10px;
+  border-right: 2px solid #3498db; border-bottom: 2px solid #3498db;
+  transform: rotate(45deg); transition: transform 0.2s ease; margin-left: 8px;
+}
+details[open] .chevron { transform: rotate(-135deg); }
+.collapsible-content {
+  padding: 12px 14px 16px 14px;
+  border-top: 1px dashed #e1e7ee;
+  background: #fff;
+}
+.ok-badge {
+  color: #27ae60; background: #eafaf0;
+  border: 1px solid #cfeede; border-radius: 16px;
+  padding: 4px 10px; font-size: 12px; font-weight: 600;
+}
+
+/* 病歷摘要三欄 */
+.record-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 980px) {
+  .record-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.record-section {
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #fafcff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.record-section h3 {
+  margin: 0; padding: 10px 12px; font-size: 1em;
+  color: #2c3e50; background: #f2f7fd; border-bottom: 1px solid #e6eef8;
+}
+.record-section .table-wrapper { padding: 10px 12px; }
+.record-section table { width: 100%; }
+.record-section table td:first-child {
+  background: #f8fbff; font-weight: 600; color: #34495e; width: 48%;
+}
+
+/* Admin 列表與卡片 */
+.search-bar {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
+}
+.search-bar input[type="text"] {
+  flex: 1; padding: 10px; border: 1px solid #d9e1ea;
+  border-radius: 6px; font-size: 14px;
+}
+.list {
+  margin-top: 8px; border: 1px solid #e9eef5; border-radius: 8px;
+  background: #fff; overflow: hidden;
+}
+.list-item {
+  padding: 10px 12px; border-bottom: 1px solid #eef3f9;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.list-item:last-child { border-bottom: none; }
+.list-item a { color: #2c3e50; text-decoration: none; font-weight: 600; }
+.list-item a:hover { color: #2980b9; }
+.result-card {
+  background: #fff; border: 1px solid #e7edf5; border-radius: 10px;
+  padding: 12px; margin-top: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+.result-header {
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: baseline;
+}
+.result-header .time { color: #718096; font-size: 13px; }
+
+/* Admin 圖片格線 */
+.grid-images {
+  display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px;
+}
+@media (min-width: 800px) {
+  .grid-images { grid-template-columns: repeat(3, 1fr); }
+}
+.grid-images img {
+  width: 100%; border: 1px solid #e8eef5; border-radius: 8px; background: #fff; padding: 4px;
+}
+audio { width: 100%; margin-top: 8px; }
+
+/* Lightbox：點圖放大 */
+.zoomable { cursor: zoom-in; }
+.img-modal {
+  position: fixed; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.7); z-index: 9999; padding: 20px;
+}
+.img-modal.open { display: flex; }
+.img-modal img {
+  max-width: 95vw; max-height: 90vh; border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35); background: #fff;
+}
+.img-modal .close-btn {
+  position: absolute; top: 16px; right: 20px;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: rgba(255,255,255,0.9); color: #333; font-size: 18px; font-weight: 700;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+.img-modal .close-btn:hover { background: #fff; }
+
+/* input_medical 導覽精靈 */
+.steps-indicator {
+  display: flex; justify-content: center; gap: 8px; margin: 10px 0 16px 0;
+}
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #bdc3c7; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;
+}
+.step-dot.active { background: #3498db; }
+.step { display: none; }
+.step.active { display: block; }
+.nav-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.nav-row .right { margin-left: auto; }
+.nav-btn { padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; color: #fff; }
+.btn-prev { background: #7f8c8d; }
+.btn-next { background: #3498db; }
+.btn-submit { background: #2ecc71; width: 100%; }

@@ -3,91 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>多模態嗓音病歷分析 - 首頁</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #f7f9fc;
-            margin: 0;
-            padding: 20px;
-        }
-        .card {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-            padding: 30px;
-            max-width: 600px;
-            margin: 100px auto;
-            text-align: center;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        .btn-row {
-            display: flex;
-            justify-content: center;
-            gap: 5vw;
-            margin-bottom: 10px;
-        }
-        .square-btn {
-            width: clamp(100px, 20vw, 200px);
-            height: clamp(100px, 20vw, 200px);
-            border: none;
-            border-radius: 16px;
-            font-size: clamp(20px, 3vw, 36px);
-            cursor: pointer;
-            font-weight: bold;
-            letter-spacing: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s, box-shadow 0.2s;
-        }
-        .square-btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-            filter: brightness(0.95);
-        }
-        .login-btn {
-            background: #3498db;
-            color: white;
-        }
-        .admin-btn {
-            background: #c32828;
-            color: white;
-        }
-        .register-link {
-            display: block;
-            margin-top: 30px;
-            font-size: 16px;
-            color: #2ecc71;
-            text-decoration: none;
-        }
-        .register-link:hover {
-            text-decoration: underline;
-        }
-        .btn-row a {
-            text-decoration: none;
-        }
-        @media (max-width: 600px) {
-            .btn-row {
-                flex-direction: column;
-                gap: 6vw;
-                align-items: center; /* 新增這一行，讓按鈕垂直置中 */
-            }
-            .square-btn {
-                width: clamp(60px, 40vw, 120px);
-                height: clamp(60px, 40vw, 120px);
-                font-size: clamp(16px, 6vw, 22px);
-            }
-            .card {
-                padding: 16px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-    <div class="card">
+    <div class="card card--home">
         <h1>多模態嗓音病歷分析</h1>
         <div class="btn-row">
             <a href="{{ url_for('login') }}">

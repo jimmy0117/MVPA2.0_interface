@@ -49,7 +49,17 @@ FIELD_LABELS = {
     "diurnal_pattern": "聲音何時最差",
     "occupational_vocal_demand": "用聲情形",
     "vhi10": "嗓音障礙指標 (VHI-10 總分)",
-    "created_at": "建立時間(UTC+8)"
+    # 新增：VHI-10 題目逐題
+    "vhi1": "VHI-1 說話時會上氣不接下氣",
+    "vhi2": "VHI-2 嗓音一天內變化",
+    "vhi3": "VHI-3 大家會問我「你的聲音怎麼了」",
+    "vhi4": "VHI-4 聲音聽起來沙啞、乾澀",
+    "vhi5": "VHI-5 必須用力才能發聲",
+    "vhi6": "VHI-6 清晰度無法預測、變化多端",
+    "vhi7": "VHI-7 試著改變我的聲音",
+    "vhi8": "VHI-8 說話使我感到吃力",
+    "vhi9": "VHI-9 傍晚過後聲音更糟",
+    "vhi10_q": "VHI-10 說話說到一半會失控失聲"
 }
 
 # 滿滿的對照表(病歷用)
@@ -243,11 +253,22 @@ def init_db():
         noise_at_work INTEGER,
         diurnal_pattern INTEGER,
         occupational_vocal_demand INTEGER,
+        -- 新增 VHI-10 題目逐題
+        vhi1 INTEGER, vhi2 INTEGER, vhi3 INTEGER, vhi4 INTEGER, vhi5 INTEGER,
+        vhi6 INTEGER, vhi7 INTEGER, vhi8 INTEGER, vhi9 INTEGER, vhi10_q INTEGER,
+        -- 保留總分
         vhi10 INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
     )
     """)
+
+    # 自動遷移：若既有表缺欄位，補上
+    cursor.execute("PRAGMA table_info(medical_records)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    for col in ["vhi1","vhi2","vhi3","vhi4","vhi5","vhi6","vhi7","vhi8","vhi9","vhi10_q"]:
+        if col not in existing_cols:
+            cursor.execute(f"ALTER TABLE medical_records ADD COLUMN {col} INTEGER DEFAULT 0")
 
     # 建立分析結果表
     cursor.execute("""
@@ -263,6 +284,19 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (record_id) REFERENCES medical_records(id)
+    )
+    """)
+
+    # 新增：分析圖片表（以二進位存 waveform/mel/mfcc）
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS result_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        result_id INTEGER,
+        waveform_blob BLOB,
+        mel_blob BLOB,
+        mfcc_blob BLOB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (result_id) REFERENCES results(id)
     )
     """)
 
@@ -330,6 +364,17 @@ def organize_records(record):
         "noise_at_work": WORKING_LABELS.get(as_int(record["noise_at_work"]), record["noise_at_work"]),
         "diurnal_pattern": VOICE1_LABELS.get(as_int(record["diurnal_pattern"]), record["diurnal_pattern"]),
         "occupational_vocal_demand": VOICE2_LABELS.get(as_int(record["occupational_vocal_demand"]), record["occupational_vocal_demand"]),
+        # 新增：逐題分數
+        "vhi1": record.get("vhi1"),
+        "vhi2": record.get("vhi2"),
+        "vhi3": record.get("vhi3"),
+        "vhi4": record.get("vhi4"),
+        "vhi5": record.get("vhi5"),
+        "vhi6": record.get("vhi6"),
+        "vhi7": record.get("vhi7"),
+        "vhi8": record.get("vhi8"),
+        "vhi9": record.get("vhi9"),
+        "vhi10_q": record.get("vhi10_q"),
         "vhi10": record["vhi10"],
         "created_at": record["created_at"]
     }
@@ -478,7 +523,97 @@ def admin():
 @app.route('/admin_Main')
 @admin_required
 def admin_Main():
-    return render_template("admin_Main.html")
+    q = request.args.get('q', '').strip()
+    user_id = request.args.get('user_id', '').strip()
+
+    matches = []
+    selected_user = None
+    results = []
+    record_pretty = None  # 新增：最新病歷摘要
+
+    conn = get_db_connection()
+    try:
+        if q:
+            matches = conn.execute(
+                "SELECT id, username FROM users WHERE username LIKE ? ORDER BY username LIMIT 50",
+                (f"%{q}%",)
+            ).fetchall()
+
+        if user_id:
+            try:
+                uid = int(user_id)
+            except ValueError:
+                uid = None
+            if uid:
+                selected_user = conn.execute(
+                    "SELECT id, username FROM users WHERE id = ?",
+                    (uid,)
+                ).fetchone()
+
+                # 新增：撈最新病歷並美化
+                rec = conn.execute("""
+                    SELECT medical_records.*, users.username
+                    FROM medical_records
+                    JOIN users ON medical_records.user_id = users.id
+                    WHERE medical_records.user_id = ?
+                    ORDER BY medical_records.created_at DESC LIMIT 1
+                """, (uid,)).fetchone()
+                if rec:
+                    record_pretty = organize_records(dict(rec))
+
+                # 原有：撈該使用者歷史檢查紀錄
+                rows = conn.execute(
+                    "SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC",
+                    (uid,)
+                ).fetchall()
+                for r in rows:
+                    rd = dict(r)
+                    if rd.get('audio_blob'):
+                        rd['audio_src'] = "data:audio/wav;base64," + base64.b64encode(rd['audio_blob']).decode('utf-8')
+
+                    # 讀取圖片 BLOB
+                    img = conn.execute(
+                        "SELECT waveform_blob, mel_blob, mfcc_blob FROM result_images WHERE result_id = ?",
+                        (rd['id'],)
+                    ).fetchone()
+                    if img:
+                        wf, mel, mfcc = img['waveform_blob'], img['mel_blob'], img['mfcc_blob']
+                        if wf:
+                            rd['waveform_src'] = "data:image/png;base64," + base64.b64encode(wf).decode('utf-8')
+                        if mel:
+                            # 修正：去掉多餘的括號
+                            rd['mel_src'] = "data:image/png;base64," + base64.b64encode(mel).decode('utf-8')
+                        if mfcc:
+                            rd['mfcc_src'] = "data:image/png;base64," + base64.b64encode(mfcc).decode('utf-8')
+
+                    # 新增：為每筆結果找「檢測時間以前最近」的一筆病歷摘要
+                    rec_at_time = conn.execute("""
+                        SELECT mr.*, u.username
+                        FROM medical_records mr
+                        JOIN users u ON mr.user_id = u.id
+                        WHERE mr.user_id = ? AND mr.created_at <= ?
+                        ORDER BY mr.created_at DESC
+                        LIMIT 1
+                    """, (uid, rd['created_at'])).fetchone()
+                    if rec_at_time:
+                        rd['record'] = organize_records(dict(rec_at_time))
+
+                    results.append(rd)
+    finally:
+        conn.close()
+
+    matches = [dict(m) for m in matches]
+    selected_user = dict(selected_user) if selected_user else None
+
+    return render_template(
+        "admin_Main.html",
+        q=q,
+        matches=matches,
+        selected_user=selected_user,
+        results=results,
+        record=record_pretty,              # 新增：病歷摘要
+        field_labels=FIELD_LABELS          # 新增：欄位對照
+    )
 
 # 主要功能頁面
 @app.route('/Main')
@@ -537,9 +672,11 @@ def input_medical():
 @login_required
 def save_medical():
     data = request.form
-    vhi10_total = sum(int(data.get(f'vhi{i}', 0)) for i in range(1, 11))
+    # 註：前端 vhi10 的最後一題 select 名稱是 vhi10（非 vhi10_q）
+    vhi_items = [int(data.get(f'vhi{i}', 0)) for i in range(1, 11)]
+    vhi10_total = sum(vhi_items)
 
-    # 入庫前統一轉 int，避免 DB 寫入字串造成後續型別不一致
+    # 入庫前統一轉 int
     int_fields = [
         'sex','age','narrow_pitch_range','decreased_volume','fatigue','dryness','lumping','heartburn',
         'choking','eye_dryness','pnd','diabetes','hypertension','cad','head_and_neck_cancer','head_injury',
@@ -555,35 +692,21 @@ def save_medical():
             fatigue, dryness, lumping, heartburn, choking, eye_dryness, pnd,
             diabetes, hypertension, cad, head_and_neck_cancer, head_injury, cva,
             smoking, ppd, drinking, frequency, onset_of_dysphonia, noise_at_work,
-            diurnal_pattern, occupational_vocal_demand, vhi10
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            diurnal_pattern, occupational_vocal_demand,
+            vhi1, vhi2, vhi3, vhi4, vhi5, vhi6, vhi7, vhi8, vhi9, vhi10_q,
+            vhi10
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?)
     """, (
         session['user_id'],
-        val['sex'],
-        val['age'],
-        val['narrow_pitch_range'],
-        val['decreased_volume'],
-        val['fatigue'],
-        val['dryness'],
-        val['lumping'],
-        val['heartburn'],
-        val['choking'],
-        val['eye_dryness'],
-        val['pnd'],
-        val['diabetes'],
-        val['hypertension'],
-        val['cad'],
-        val['head_and_neck_cancer'],
-        val['head_injury'],
-        val['cva'],
-        val['smoking'],
-        val['ppd'],
-        val['drinking'],
-        val['frequency'],
-        val['onset_of_dysphonia'],
-        val['noise_at_work'],
-        val['diurnal_pattern'],
-        val['occupational_vocal_demand'],
+        val['sex'], val['age'], val['narrow_pitch_range'], val['decreased_volume'],
+        val['fatigue'], val['dryness'], val['lumping'], val['heartburn'], val['choking'],
+        val['eye_dryness'], val['pnd'], val['diabetes'], val['hypertension'], val['cad'],
+        val['head_and_neck_cancer'], val['head_injury'], val['cva'], val['smoking'], val['ppd'],
+        val['drinking'], val['frequency'], val['onset_of_dysphonia'], val['noise_at_work'],
+        val['diurnal_pattern'], val['occupational_vocal_demand'],
+        # 逐題（注意：vhi10_q 對應前端的 vhi10）
+        vhi_items[0], vhi_items[1], vhi_items[2], vhi_items[3], vhi_items[4],
+        vhi_items[5], vhi_items[6], vhi_items[7], vhi_items[8], vhi_items[9],
         vhi10_total
     ))
     conn.commit()
@@ -730,11 +853,12 @@ def confirm_analysis():
                                    field_labels=FIELD_LABELS)
         waveform_img, mel_img, mfcc_img = result
 
-        # 存結果
+        # 存結果 + 讀入音檔 BLOB
         with open(audio_path, "rb") as f:
             audio_blob = f.read()
         conn = get_db_connection()
-        conn.execute("""
+        cur = conn.cursor()
+        cur.execute("""
             INSERT INTO results (user_id, record_id, result1, confidence1, result2, confidence2, audio_blob)
             VALUES (?,?,?,?,?,?,?)
         """, (
@@ -746,6 +870,21 @@ def confirm_analysis():
             float(conf2) if conf2 is not None else None,
             audio_blob
         ))
+        result_id = cur.lastrowid  # 取得剛插入的結果ID
+
+        # 讀取三張分析 PNG 檔，寫入 result_images
+        with open(os.path.join(IMAGE_FOLDER, waveform_img), "rb") as f:
+            waveform_blob = f.read()
+        with open(os.path.join(IMAGE_FOLDER, mel_img), "rb") as f:
+            mel_blob = f.read()
+        with open(os.path.join(IMAGE_FOLDER, mfcc_img), "rb") as f:
+            mfcc_blob = f.read()
+
+        cur.execute("""
+            INSERT INTO result_images (result_id, waveform_blob, mel_blob, mfcc_blob)
+            VALUES (?,?,?,?)
+        """, (result_id, waveform_blob, mel_blob, mfcc_blob))
+
         conn.commit()
         conn.close()
 
