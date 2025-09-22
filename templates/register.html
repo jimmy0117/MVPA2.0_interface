@@ -10,16 +10,33 @@
     <a href="{{ url_for('index') }}"><button class="btn btn-success">返回</button></a>
     <div class="card card--auth">
         <h2>註冊</h2>
-        <form method="POST">
+        <form method="POST" id="regForm" novalidate>
             <div class="form-row">
                 <label>帳號</label>
-                <input type="text" name="username" required>
+                <input type="text" name="username" autocomplete="username" required
+                       pattern="^[A-Za-z0-9_]{3,32}$" title="3-32 字元，僅限英文、數字、底線">
             </div>
             <div class="form-row">
                 <label>密碼</label>
-                <input type="password" name="password" required>
+                <input type="password" id="password" name="password" autocomplete="new-password" required>
             </div>
-            <button type="submit" class="btn btn-success btn--block">註冊</button>
+            <!-- 密碼強度條與提示 -->
+            <div class="pw-meter" id="pwMeter"><span></span></div>
+            <div class="pw-hint">至少 8 碼，需包含 大小寫、數字 與 符號。</div>
+
+            <div class="form-row">
+                <label>再次輸入</label>
+                <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+            </div>
+            <div class="match-error" id="matchError">兩次密碼不一致</div>
+
+            <div class="form-row" style="margin-top:10px;">
+                <label style="min-width:auto;">
+                    <input type="checkbox" id="togglePw"> 顯示密碼
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-success btn--block" id="submitBtn">註冊</button>
         </form>
         <div class="link">
             <p>已經有帳號？ <a href="{{ url_for('login') }}">登入</a></p>
@@ -28,5 +45,64 @@
     {% if error %}
         <script>alert("{{ error }}");</script>
     {% endif %}
+
+    <script>
+    // 密碼強度與一致性檢查
+    (function() {
+        const pw = document.getElementById('password');
+        const cpw = document.getElementById('confirm_password');
+        const meter = document.getElementById('pwMeter');
+        const bar = meter.querySelector('span');
+        const matchError = document.getElementById('matchError');
+        const submitBtn = document.getElementById('submitBtn');
+        const togglePw = document.getElementById('togglePw');
+        const form = document.getElementById('regForm');
+
+        function scorePassword(p) {
+            let s = 0;
+            if (!p) return 0;
+            if (p.length >= 8) s++;
+            if (/[a-z]/.test(p)) s++;
+            if (/[A-Z]/.test(p)) s++;
+            if (/\d/.test(p)) s++;
+            if (/[^A-Za-z0-9]/.test(p)) s++;
+            // map 0-5 -> 0/1/2/3/4
+            return Math.min(s, 4);
+        }
+        function updateMeter() {
+            const score = scorePassword(pw.value);
+            meter.className = 'pw-meter';
+            if (score <= 1) meter.classList.add('-weak');
+            else if (score === 2) meter.classList.add('-medium');
+            else if (score === 3) meter.classList.add('-strong');
+            else if (score >= 4) meter.classList.add('-very-strong');
+        }
+        function checkMatch() {
+            const ok = cpw.value.length > 0 && pw.value === cpw.value;
+            matchError.style.display = ok ? 'none' : 'block';
+            return ok;
+        }
+        function validateAll() {
+            const hasValue = pw.value.length > 0; // 不再依賴 pattern/minlength
+            const matched = checkMatch();
+            submitBtn.disabled = !(hasValue && matched);
+        }
+
+        pw.addEventListener('input', () => { updateMeter(); validateAll(); });
+        cpw.addEventListener('input', validateAll);
+
+        togglePw.addEventListener('change', () => {
+            const t = togglePw.checked ? 'text' : 'password';
+            pw.type = t; cpw.type = t;
+        });
+
+        form.addEventListener('submit', (e) => {
+            if (submitBtn.disabled) e.preventDefault();
+        });
+
+        // init
+        updateMeter(); validateAll();
+    })();
+    </script>
 </body>
 </html>

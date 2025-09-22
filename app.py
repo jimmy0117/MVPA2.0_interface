@@ -15,6 +15,7 @@ import sqlite3
 import pandas as pd
 import joblib
 import base64
+from werkzeug.utils import secure_filename
 
 
 # 圖片存放路徑
@@ -192,8 +193,13 @@ def generate_audio_images(audio_path, filename_base):
 
 # 判斷副檔名
 ALLOWED_EXTENSIONS = {'wav', 'mp3','webm'}
+ALLOWED_MIMES = {
+    'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mpeg', 'audio/mp3', 'application/octet-stream'
+}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_mime(mimetype):
+    return mimetype in ALLOWED_MIMES
 
 # 資料庫連線用函式
 def get_db_connection():
@@ -318,7 +324,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if "user_id" not in session or not session.get("is_admin"):
+        if not session.get("is_admin"):
             return redirect(url_for('admin'))
         return f(*args, **kwargs)
     return decorated_function
@@ -423,10 +429,31 @@ def predict_audio_file(file_path, model_path, class_names, sr=22050, duration=3.
     return pred_label, pred_proba
 
 app = Flask(__name__) # 建立Application物件
-app.secret_key = secrets.token_hex(16) # 安全字串
+# 使用環境變數 SECRET_KEY，無則退回隨機
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
 UPLOAD_FOLDER = 'uploads/audio'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# 安全強化：限制上傳大小（例：10MB）
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+# Session/Cookie 安全
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=False  # 部署 HTTPS 後請改為 True
+)
+
+# 安全標頭
+@app.after_request
+def set_security_headers(resp):
+    # 注意：目前使用內嵌 <script>/<style> 與 data URI，因此 CSP 暫放寬；未來可移除 inline 並收緊
+    resp.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; media-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['X-Frame-Options'] = 'DENY'
+    resp.headers['Referrer-Policy'] = 'no-referrer'
+    resp.headers['Permissions-Policy'] = 'microphone=(), camera=()'
+    return resp
 
 # 網站首頁
 @app.route('/')
@@ -439,8 +466,12 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        hashed_pw = generate_password_hash(password)
 
+        # 基礎密碼強度檢查（長度>=8、含字母與數字）
+        if len(password) < 8 or password.isalpha() or password.isdigit():
+            return render_template("register.html", error="密碼需至少8碼，且包含字母與數字")
+
+        hashed_pw = generate_password_hash(password)
         conn = get_db_connection()
         try:
             conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_pw))
@@ -485,8 +516,11 @@ def admin_register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        hashed_pw = generate_password_hash(password)
 
+        if len(password) < 8 or password.isalpha() or password.isdigit():
+            return render_template("admin_register.html", error="密碼需至少8碼，且包含字母與數字")
+
+        hashed_pw = generate_password_hash(password)
         conn = get_db_connection()
         try:
             conn.execute("INSERT INTO admins (username, password) VALUES (?, ?)", (username, hashed_pw))
@@ -509,12 +543,13 @@ def admin():
         conn = get_db_connection()
         admin = conn.execute("SELECT * FROM admins WHERE username=?", (username,)).fetchone()
         conn.close()
-        print(username,password)
-        print(admin)
+        # 移除印出帳密的 debug 紀錄
         if admin and check_password_hash(admin['password'], password):
-            session['user_id'] = admin['id']
+            # 不覆蓋一般使用者的 user_id
+            session.clear()
+            session['admin_id'] = admin['id']
             session['username'] = admin['username']
-            session['is_admin'] = True  # 醫生權限
+            session['is_admin'] = True
             return redirect(url_for('admin_Main'))
         else:
             return render_template("admin.html", error="帳號或密碼錯誤")
@@ -639,28 +674,42 @@ def Main():
 @app.route('/upload_audio', methods=['POST'])
 @login_required
 def upload_audio():
-    file = request.files['audio_file']
-    if file and allowed_file(file.filename):
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        save_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{timestamp}.{ext}")
+    file = request.files.get('audio_file')
+    if not file:
+        return jsonify({"error": "未接收到檔案"}), 400
+    if not allowed_file(file.filename) or not allowed_mime(file.mimetype):
+        return jsonify({"error": "僅允許上傳 .wav/.mp3/.webm 且需為有效音訊 MIME 類型"}), 400
+
+    # 以時間戳＋隨機字串命名，避免原檔名風險
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    ext = secure_filename(file.filename).rsplit('.', 1)[1].lower()
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{timestamp}_{secrets.token_hex(4)}.{ext}")
+
+    try:
         file.save(save_path)
-        return jsonify({"audio_path": save_path})
-    else:
-        return jsonify({"error": "請上傳 .wav 或 .mp3 或 .webm 音訊檔"}), 400
-    
+    except Exception as e:
+        return jsonify({"error": f"上傳失敗：{e}"}), 500
+
+    return jsonify({"audio_path": save_path})
+
 # 上傳錄音檔案
 @app.route('/record_audio', methods=['POST'])
 @login_required
 def record_audio():
-    file = request.files['audio_data']
-    if file:
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        save_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{timestamp}.webm")
+    file = request.files.get('audio_data')
+    if not file:
+        return jsonify({"error": "未接收到錄音"}), 400
+    if not allowed_mime(file.mimetype):
+        return jsonify({"error": "錄音格式不被接受"}), 400
+
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{timestamp}_{secrets.token_hex(4)}.webm")
+    try:
         file.save(save_path)
-        return jsonify({"audio_path": save_path})
-    else:
-        return jsonify({"error": "錄音失敗"}), 400
+    except Exception as e:
+        return jsonify({"error": f"錄音儲存失敗：{e}"}), 500
+
+    return jsonify({"audio_path": save_path})
 
 # 手動輸入
 @app.route('/input_medical')

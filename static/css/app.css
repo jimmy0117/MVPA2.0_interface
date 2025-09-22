@@ -314,3 +314,35 @@ audio { width: 100%; margin-top: 8px; }
 .btn-prev { background: #7f8c8d; }
 .btn-next { background: #3498db; }
 .btn-submit { background: #2ecc71; width: 100%; }
+
+/* 密碼強度條與提示 */
+.pw-hint {
+  font-size: 12px;
+  color: #718096;
+  margin-top: 6px;
+}
+.pw-meter {
+  height: 6px;
+  background: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 6px 0 10px;
+}
+.pw-meter > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  transition: width 0.2s ease;
+  border-radius: 6px;
+  background: #e53e3e; /* default weak */
+}
+.pw-meter.-weak > span { width: 25%; background: #e53e3e; }
+.pw-meter.-medium > span { width: 50%; background: #dd6b20; }
+.pw-meter.-strong > span { width: 75%; background: #d69e2e; }
+.pw-meter.-very-strong > span { width: 100%; background: #38a169; }
+.match-error {
+  color: #c53030;
+  font-size: 12px;
+  margin-top: 6px;
+  display: none;
+}
