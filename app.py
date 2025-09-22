@@ -16,6 +16,7 @@ import pandas as pd
 import joblib
 import base64
 
+
 # 圖片存放路徑
 IMAGE_FOLDER = 'static/images'
 os.makedirs(IMAGE_FOLDER, exist_ok=True)
