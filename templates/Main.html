@@ -106,8 +106,9 @@
             <span id="fileName" style="margin-left:10px; font-style:italic; color:#555; font-size: 13px;"></span>
         </form>
 
-        <button type="button" onclick="startRecording()">開始錄音</button>
-        <button type="button" onclick="stopRecording()">停止錄音</button>
+        <!-- 改為啟動倒數提示，三秒後自動錄音（三秒） -->
+        <button type="button" id="startRecBtn" onclick="startRecordingWithPrompt()" >開始錄音</button>
+        <button type="button" id="stopRecBtn" onclick="stopRecording()" disabled>停止錄音</button>
 
         <p id="status" style="color:blue;"></p>
     </div>
@@ -173,11 +174,17 @@
 <script>
 let mediaRecorder;
 let audioChunks = [];
+let currentStream = null;
+let prepTimer = null;      // 錄前倒數計時器
+let autoStopTimer = null;  // 錄音自動停止計時器
 
 function setStatus(msg, color="blue") {
     let status = document.getElementById("status");
-    status.style.color = color;
-    status.textContent = msg;
+    if (status) {
+        status.style.color = color;
+        status.textContent = msg;
+    }
+    console.log("[status]", msg);
 }
 
 // 自動上傳音檔
@@ -200,44 +207,195 @@ function autoUploadAudio(input) {
     .catch(err => setStatus("上傳失敗：" + err, "red"));
 }
 
-// 開始錄音
-function startRecording() {
+/* 新增：錄音前倒數提示並自動開始/停止 */
+function startRecordingWithPrompt(prepSeconds = 3, recordSeconds = 3) {
+    const startBtn = document.getElementById('startRecBtn');
+    const stopBtn = document.getElementById('stopRecBtn');
+
+    // 防止重複啟動
+    if (prepTimer || mediaRecorder) return;
+    if (startBtn) startBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
+
+    let countdown = prepSeconds;
+    setStatus(`請準備發出「啊」音，${countdown} 秒後開始錄音...`, "blue");
+
+    prepTimer = setInterval(() => {
+        countdown -= 1;
+        if (countdown > 0) {
+            setStatus(`請準備發出「啊」音，${countdown} 秒後開始錄音...`, "blue");
+        } else {
+            clearInterval(prepTimer);
+            prepTimer = null;
+            // 開始錄音並安排自動停止
+            beginRecording(recordSeconds);
+        }
+    }, 1000);
+}
+
+/* beginRecording: 實際請求麥克風並開始錄音 */
+function beginRecording(recordSeconds = 3) {
+    const startBtn = document.getElementById('startRecBtn');
+    const stopBtn = document.getElementById('stopRecBtn');
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setStatus("此瀏覽器不支援錄音功能", "red");
+        if (startBtn) startBtn.disabled = false;
         return;
     }
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.start();
-        audioChunks = [];
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        setStatus("錄音中...");
+
+    setStatus("請求麥克風權限...", "blue");
+    navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+        currentStream = stream;
+        try {
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream);
+        } catch (e) {
+            console.error("建立 MediaRecorder 失敗", e);
+            setStatus("無法建立錄音器：" + (e.message || e), "red");
+            if (startBtn) startBtn.disabled = false;
+            return;
+        }
+
+        mediaRecorder.ondataavailable = function(e) {
+            if (e && e.data) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstart = function() {
+            setStatus("錄音中...");
+            if (stopBtn) stopBtn.disabled = false;
+        };
+
+        mediaRecorder.onstop = function() {
+            setStatus("停止錄音，準備上傳...");
+            // 上傳音檔
+            try {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append("audio_data", audioBlob, "record.webm");
+                fetch("/record_audio", { method: "POST", body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.audio_path) {
+                        document.getElementById("audioPath").value = data.audio_path;
+                        setStatus("錄音完成，可以按確認 ✅", "green");
+                        updateConfirmButton();
+                    } else {
+                        setStatus("上傳失敗：" + (data.error || "未知錯誤"), "red");
+                    }
+                })
+                .catch(err => {
+                    console.error("upload error", err);
+                    setStatus("錄音上傳失敗：" + err, "red");
+                })
+                .finally(() => {
+                    if (startBtn) startBtn.disabled = false;
+                });
+            } catch (e) {
+                console.error("處理錄音時發生錯誤", e);
+                setStatus("處理錄音失敗：" + (e.message || e), "red");
+                if (startBtn) startBtn.disabled = false;
+            }
+
+            // 釋放 stream
+            if (currentStream) {
+                try { currentStream.getTracks().forEach(t => t.stop()); } catch(e){/*ignore*/}
+                currentStream = null;
+            }
+            mediaRecorder = null;
+            // 清除自動停止計時器（若尚存）
+            if (autoStopTimer) {
+                clearTimeout(autoStopTimer);
+                autoStopTimer = null;
+            }
+        };
+
+        mediaRecorder.onerror = function(e) {
+            console.error("MediaRecorder error:", e);
+            setStatus("錄音發生錯誤：" + (e.error || e.message || e), "red");
+            if (startBtn) startBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = true;
+        };
+
+        try {
+            mediaRecorder.start();
+            console.log("mediaRecorder started:", mediaRecorder.state);
+            // 設定自動停止（recordSeconds 秒後）
+            autoStopTimer = setTimeout(() => {
+                try { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); } catch(e){ console.warn(e); }
+            }, recordSeconds * 1000);
+        } catch (e) {
+            console.error("start failed", e);
+            setStatus("啟動錄音失敗：" + (e.message || e), "red");
+            if (startBtn) startBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = true;
+        }
+    })
+    .catch(err => {
+        console.error("getUserMedia error:", err);
+        // 若倒數尚在，清除倒數並恢復按鈕
+        if (prepTimer) { clearInterval(prepTimer); prepTimer = null; }
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+
+        if (err && (err.name === 'NotAllowedError' || /Permission/i.test(err.message || ''))) {
+            setStatus("無法取得麥克風權限，請允許網站使用麥克風。", "red");
+            alert("請在瀏覽器允許麥克風後再試一次。");
+        } else if (err && (err.name === 'NotFoundError' || /No device/i.test(err.message || ''))) {
+            setStatus("找不到麥克風裝置，請確認已連接並啟用。", "red");
+            alert("找不到麥克風裝置，請確認硬體與系統權限。");
+        } else {
+            setStatus("取得麥克風失敗：" + (err.message || err), "red");
+            alert("取得麥克風失敗：" + (err.message || err));
+        }
     });
 }
 
-// 停止錄音
+/* 停止錄音：會清除倒數與自動停止計時器，並停止 stream */
 function stopRecording() {
-    if (!mediaRecorder) return;
-    mediaRecorder.stop();
-    mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append("audio_data", audioBlob, "record.webm");
+    const startBtn = document.getElementById('startRecBtn');
+    const stopBtn = document.getElementById('stopRecBtn');
 
-        setStatus("處理錄音...");
-        fetch("/record_audio", { method: "POST", body: formData })
-        .then(res => res.json())
-        .then(data => {
-            if (data.audio_path) {
-                document.getElementById("audioPath").value = data.audio_path;
-                setStatus("錄音完成，可以按確認 ✅", "green");
-                updateConfirmButton();
-            } else {
-                setStatus("錄音失敗：" + (data.error || "未知錯誤"), "red");
-            }
-        })
-        .catch(err => setStatus("錄音失敗：" + err, "red"));
-    };
+    // 若正在倒數階段，取消倒數且恢復按鈕
+    if (prepTimer) {
+        clearInterval(prepTimer);
+        prepTimer = null;
+        setStatus("已取消錄音準備。", "blue");
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+        return;
+    }
+
+    // 若沒有 mediaRecorder，直接回報
+    if (!mediaRecorder) {
+        setStatus("尚未在錄音中。", "blue");
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+        return;
+    }
+
+    try {
+        if (mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+    } catch (e) {
+        console.error("stop error", e);
+        setStatus("停止錄音發生錯誤：" + (e.message || e), "red");
+    }
+
+    // 停用自動停止計時器
+    if (autoStopTimer) {
+        clearTimeout(autoStopTimer);
+        autoStopTimer = null;
+    }
+
+    // 嘗試立即停止 stream（onstop 也會做一次）
+    if (currentStream) {
+        try { currentStream.getTracks().forEach(t => t.stop()); } catch(e){/*ignore*/}
+        currentStream = null;
+    }
+    if (stopBtn) stopBtn.disabled = true;
 }
 
 //確認鍵是否可以按

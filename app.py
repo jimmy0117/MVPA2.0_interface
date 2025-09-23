@@ -16,7 +16,11 @@ import pandas as pd
 import joblib
 import base64
 from werkzeug.utils import secure_filename
+import logging
 
+
+# 減少 static 檔案 304 等存取訊息在開發主控台的顯示
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 # 圖片存放路徑
 IMAGE_FOLDER = 'static/images'
@@ -452,7 +456,6 @@ def set_security_headers(resp):
     resp.headers['X-Content-Type-Options'] = 'nosniff'
     resp.headers['X-Frame-Options'] = 'DENY'
     resp.headers['Referrer-Policy'] = 'no-referrer'
-    resp.headers['Permissions-Policy'] = 'microphone=(), camera=()'
     return resp
 
 # 網站首頁
