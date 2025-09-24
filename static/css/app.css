@@ -315,6 +315,54 @@ audio { width: 100%; margin-top: 8px; }
 .btn-next { background: #3498db; }
 .btn-submit { background: #2ecc71; width: 100%; }
 
+/* input_medical 選項 */
+input, select {
+  width: auto;
+  padding: 8px 10px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.form-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.form-group label {
+  min-width: 120px;
+  margin-bottom: 0;
+}
+.form-group select,
+.form-group input {
+  flex: auto;
+}
+select[name^="vhi"] {
+  margin-left: auto;
+  flex: none;
+}
+.form-group-pair .form-group:only-child:not(.vhi-group) {
+  max-width: 48.8%;
+  flex: 0 0 50%;
+}
+.form-group-pair {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+/* 讓每個症狀欄位平均分配寬度 */
+.form-group-pair .form-group {
+  flex: 1 1 0;
+}
+@media (max-width: 600px) {
+  .form-group-pair {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
 /* 密碼強度條與提示 */
 .pw-hint {
   font-size: 12px;
